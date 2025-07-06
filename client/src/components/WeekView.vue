@@ -49,6 +49,7 @@
     <UploadForm 
       v-if="showSubmissionForm" 
       :category-id="categoryId" 
+      :category-info="categoryInfo"
       :week-number="weekNumber"
       :existing-submission="userSubmission"
       @close="showSubmissionForm = false"

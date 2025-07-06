@@ -98,7 +98,7 @@ def submit_project(category_id, week_number):
     
     Example request:
     {
-        "student_id": 1,
+        "full_name": "John Doe",
         "project_url": "https://scratch.mit.edu/projects/123456",
         "comment": "This is my first Scratch project!"
     }
@@ -121,7 +121,7 @@ def submit_project(category_id, week_number):
         if not data:
             return handle_error("No data provided", 400)
         
-        required_fields = ['student_id', 'project_url']
+        required_fields = ['full_name', 'project_url']
         for field in required_fields:
             if field not in data:
                 return handle_error(f"Missing required field: {field}", 400)
@@ -140,8 +140,12 @@ def submit_project(category_id, week_number):
         # Get the week
         week = Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
         
-        # Check if student exists
-        student = Student.query.get_or_404(data['student_id'])
+        # Find or create the student by name
+        student = Student.query.filter_by(name=data['full_name']).first()
+        if not student:
+            student = Student(name=data['full_name'])
+            db.session.add(student)
+            db.session.commit() # Commit to get the student ID
         
         # Check if submission already exists
         existing_submission = Submission.query.filter_by(
