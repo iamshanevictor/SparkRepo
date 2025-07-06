@@ -3,6 +3,7 @@ import CategoryList from './components/CategoryList.vue'
 import WeekView from './components/WeekView.vue'
 import LoginForm from './components/LoginForm.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
+import SubmissionForm from './components/SubmissionForm.vue'
 
 export default {
   name: 'App',
@@ -10,7 +11,8 @@ export default {
     CategoryList,
     WeekView,
     LoginForm,
-    AdminDashboard
+    AdminDashboard,
+    SubmissionForm
   },
   data() {
     return {
@@ -23,7 +25,8 @@ export default {
       // Admin authentication
       isAdmin: false,
       adminView: 'login',  // 'login' or 'dashboard'
-      showAdminButton: true
+      showAdminButton: true,
+
     }
   },
   created() {
@@ -46,6 +49,12 @@ export default {
     }
   },
   methods: {
+    handleProjectSubmitted(project) {
+      // This will be wired up to an API call
+      console.log('Project submitted:', project);
+      alert('Project submitted successfully!');
+      this.currentView = 'categories'; // Or wherever you want to redirect
+    },
     handleCategorySelected(categoryItem) {
       this.selectedCategory = categoryItem
       this.currentView = 'weeks'
@@ -105,15 +114,20 @@ export default {
         <div class="header-right">
           <p class="tagline">Upload and share your Scratch projects</p>
           <button v-if="showAdminButton" class="admin-btn" @click="toggleAdminView">Admin</button>
+          <button @click="currentView = 'submission'">Submission Form</button>
         </div>
       </header>
 
       <main>
         <!-- Category Selection View -->
-        <CategoryList 
-          v-if="currentView === 'categories'"
-          @category-selected="handleCategorySelected"
-        />
+        <div v-if="currentView === 'submission'">
+          <SubmissionForm @project-submitted="handleProjectSubmitted" />
+        </div>
+        <div v-else-if="currentView === 'categories'">
+          <CategoryList 
+            @category-selected="handleCategorySelected"
+          />
+        </div>
         
         <!-- Week View with Weeks Navigation -->
         <div v-else-if="currentView === 'weeks'" class="week-container">

@@ -168,3 +168,24 @@ class Submission(db.Model):
             'submitted_at': self.submitted_at.isoformat(),
             'last_modified': self.last_modified.isoformat()
         }
+
+
+class ProjectSubmission(db.Model):
+    """A simple model for project submissions."""
+    __tablename__ = 'project_submissions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    project_link = db.Column(db.String(255), nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ProjectSubmission {self.name}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'project_link': self.project_link,
+            'submitted_at': self.submitted_at.isoformat()
+        }

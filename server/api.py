@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, Blueprint
-from models import db, Category, Week, Student, Submission
+from models import db, Category, Week, Student, Submission, ProjectSubmission
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 
@@ -230,3 +230,58 @@ def get_student_submissions(student_id):
         return jsonify([sub.to_dict() for sub in submissions])
     except Exception as e:
         return handle_error(e, 500)
+
+
+# --- Project Submission Routes ---
+
+# GET /project-submissions - List all project submissions
+@api.route('/project-submissions', methods=['GET'])
+def get_project_submissions():
+    """
+    Returns a list of all project submissions, ordered by most recent.
+    """
+    try:
+        submissions = ProjectSubmission.query.order_by(ProjectSubmission.submitted_at.desc()).all()
+        return jsonify([s.to_dict() for s in submissions])
+    except Exception as e:
+        return handle_error(e, 500)
+
+# POST /project-submissions - Submit a new project
+@api.route('/project-submissions', methods=['POST'])
+def submit_new_project():
+    """
+    Submits a new project with a name and a link.
+    
+    Example request:
+    {
+        "name": "Jane Doe",
+        "project_link": "https://github.com/janedoe/my-awesome-project"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return handle_error("No data provided", 400)
+        
+        name = data.get('name')
+        project_link = data.get('project_link')
+        
+        if not name or not project_link:
+            return handle_error("Missing 'name' or 'project_link'", 400)
+        
+        new_submission = ProjectSubmission(
+            name=name,
+            project_link=project_link
+        )
+        
+        db.session.add(new_submission)
+        db.session.commit()
+        
+        return jsonify(new_submission.to_dict()), 201
+        
+    except IntegrityError as e:
+        db.session.rollback()
+        return handle_error(f"Database integrity error: {e}", 400)
+    except Exception as e:
+        db.session.rollback()
+        return handle_error(str(e), 500)
