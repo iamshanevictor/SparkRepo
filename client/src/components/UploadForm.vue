@@ -72,7 +72,7 @@
 export default {
   name: 'UploadForm',
   props: {
-    classId: {
+    categoryId: {
       type: Number,
       required: true
     },
@@ -148,7 +148,7 @@ export default {
         this.error = null
         
         const response = await fetch(
-          `http://localhost:5000/api/classes/${this.classId}/weeks/${this.weekNumber}/submissions`, 
+          `http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}/submissions`, 
           {
             method: 'POST',
             headers: {

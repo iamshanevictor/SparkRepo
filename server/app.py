@@ -9,10 +9,11 @@ import secrets
 
 def create_app(test_config=None):
     """Create and configure the Flask application."""
-    app = Flask(__name__, instance_relative_config=True)
-    
-    # Configure the SQLite database
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sparkrepo.db'
+    app = Flask(__name__)
+
+    # Configure the SQLite database using an absolute path
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'sparkrepo.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Configure JWT

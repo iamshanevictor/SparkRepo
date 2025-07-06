@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, Blueprint
-from models import db, Class, Week, Student, Submission
+from models import db, Category, Week, Student, Submission
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 
@@ -10,72 +10,46 @@ api = Blueprint('api', __name__)
 def handle_error(e, status_code=400):
     return jsonify({'error': str(e)}), status_code
 
-# GET /classes - List all classes
-@api.route('/classes', methods=['GET'])
-def get_classes():
+# GET /categories - List all categories
+@api.route('/categories', methods=['GET'])
+def get_categories():
     """
-    Returns a list of all available classes.
-    
-    Example response:
-    [
-        {"id": 1, "name": "Coding for Kids 001 (2025)", "description": "Beginner coding class"},
-        {"id": 2, "name": "Coding for Kids 002 (2025)", "description": "Intermediate coding class"}
-    ]
+    Returns a list of all available categories.
     """
     try:
-        classes = Class.query.all()
-        return jsonify([class_.to_dict() for class_ in classes])
+        categories = Category.query.all()
+        return jsonify([category.to_dict() for category in categories])
     except Exception as e:
         return handle_error(e, 500)
 
-# GET /classes/{id} - Get a specific class
-@api.route('/classes/<int:class_id>', methods=['GET'])
-def get_class(class_id):
+# GET /categories/{id} - Get a specific category
+@api.route('/categories/<int:category_id>', methods=['GET'])
+def get_category(category_id):
     """
-    Returns details for a specific class.
-    
-    Example response:
-    {
-        "id": 1,
-        "name": "Coding for Kids 001 (2025)",
-        "description": "Beginner coding class"
-    }
+    Returns details for a specific category.
     """
     try:
-        class_ = Class.query.get_or_404(class_id)
-        return jsonify(class_.to_dict())
+        category = Category.query.get_or_404(category_id)
+        return jsonify(category.to_dict())
     except Exception as e:
         return handle_error(e, 500)
 
-# GET /classes/{id}/weeks - List all weeks for a class
-@api.route('/classes/<int:class_id>/weeks', methods=['GET'])
-def get_class_weeks(class_id):
+# GET /categories/{id}/weeks - List all weeks for a category
+@api.route('/categories/<int:category_id>/weeks', methods=['GET'])
+def get_category_weeks(category_id):
     """
-    Returns all weeks for a specific class.
-    
-    Example response:
-    [
-        {
-            "id": 1,
-            "class_id": 1,
-            "week_number": 1,
-            "title": "Introduction to Scratch",
-            "description": "Learn the basics of Scratch programming",
-            "assignment_url": "https://scratch.mit.edu/projects/example",
-            "due_date": "2025-06-01T23:59:59"
-        }
-    ]
+    Returns all weeks for a specific category.
     """
     try:
-        Class.query.get_or_404(class_id)  # Check if class exists
-        weeks = Week.query.filter_by(class_id=class_id).order_by(Week.week_number).all()
+        Category.query.get_or_404(category_id)  # Check if category exists
+        weeks = Week.query.filter_by(category_id=category_id).order_by(Week.week_number).all()
         return jsonify([week.to_dict() for week in weeks])
     except Exception as e:
         return handle_error(e, 500)
 
-# GET /classes/{id}/weeks/{week} - Get a specific week's assignment
-@api.route('/classes/<int:class_id>/weeks/<int:week_number>', methods=['GET'])
-def get_week_assignment(class_id, week_number):
+# GET /categories/{id}/weeks/{week} - Get a specific week's assignment
+@api.route('/categories/<int:category_id>/weeks/<int:week_number>', methods=['GET'])
+def get_week_assignment(category_id, week_number):
     """
     Returns details for a specific week's assignment.
     
@@ -100,8 +74,8 @@ def get_week_assignment(class_id, week_number):
     }
     """
     try:
-        Class.query.get_or_404(class_id)  # Check if class exists
-        week = Week.query.filter_by(class_id=class_id, week_number=week_number).first_or_404()
+        Category.query.get_or_404(category_id)  # Check if category exists
+        week = Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
         
         # Get the week data
         week_data = week.to_dict()
@@ -116,9 +90,9 @@ def get_week_assignment(class_id, week_number):
     except Exception as e:
         return handle_error(e, 500)
 
-# POST /classes/{id}/weeks/{week}/submissions - Submit a project link
-@api.route('/classes/<int:class_id>/weeks/<int:week_number>/submissions', methods=['POST'])
-def submit_project(class_id, week_number):
+# POST /categories/{id}/weeks/{week}/submissions - Submit a project link
+@api.route('/categories/<int:category_id>/weeks/<int:week_number>/submissions', methods=['POST'])
+def submit_project(category_id, week_number):
     """
     Submit a project link for a specific week.
     
@@ -164,12 +138,10 @@ def submit_project(class_id, week_number):
             return handle_error("Invalid project type specified", 400)
         
         # Get the week
-        week = Week.query.filter_by(class_id=class_id, week_number=week_number).first_or_404()
+        week = Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
         
-        # Check if student exists and belongs to the class
+        # Check if student exists
         student = Student.query.get_or_404(data['student_id'])
-        if student.class_id != class_id:
-            return handle_error("Student does not belong to this class", 403)
         
         # Check if submission already exists
         existing_submission = Submission.query.filter_by(
@@ -207,28 +179,23 @@ def submit_project(class_id, week_number):
 
 # Additional routes for student management
 
-# GET /students - List all students (with optional class_id filter)
+# GET /students - List all students
 @api.route('/students', methods=['GET'])
 def get_students():
     """
-    Returns a list of all students, optionally filtered by class_id.
+    Returns a list of all students.
     
     Example response:
     [
         {
             "id": 1,
             "name": "John Doe",
-            "email": "john@example.com",
-            "class_id": 1
+            "email": "john@example.com"
         }
     ]
     """
     try:
-        class_id = request.args.get('class_id', type=int)
-        if class_id:
-            students = Student.query.filter_by(class_id=class_id).all()
-        else:
-            students = Student.query.all()
+        students = Student.query.all()
         return jsonify([student.to_dict() for student in students])
     except Exception as e:
         return handle_error(e, 500)

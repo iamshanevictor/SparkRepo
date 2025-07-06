@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import db, Week, Submission, Class, Student, User
+from models import db, Week, Submission, Category, Student, User
 from auth import admin_required
 from datetime import datetime
 
@@ -35,8 +35,8 @@ def get_all_weeks():
     for week in weeks:
         result.append({
             "id": week.id,
-            "class_id": week.class_id,
-            "class_name": week.class_.name,
+            "category_id": week.category_id,
+            "category_name": week.category.name,
             "week_number": week.week_number,
             "title": week.title,
             "display_name": week.display_name or week.title,
@@ -110,10 +110,10 @@ def update_week(week_id):
     }), 200
 
 # Admin - Create a new week
-@admin_api.route('/classes/<int:class_id>/weeks', methods=['POST'])
+@admin_api.route('/categories/<int:category_id>/weeks', methods=['POST'])
 @jwt_required()
 @admin_required
-def create_week(class_id):
+def create_week(category_id):
     """
     Admin only - Create a new week for a class.
     
@@ -143,26 +143,26 @@ def create_week(class_id):
         }
     }
     """
-    # Check if class exists
-    class_ = Class.query.get_or_404(class_id)
+    # Check if category exists
+    category = Category.query.get_or_404(category_id)
     
     data = request.get_json()
     
     if not data or 'week_number' not in data or 'title' not in data:
         return jsonify({"error": "Missing required fields"}), 400
     
-    # Check if week number already exists for this class
+    # Check if week number already exists for this category
     existing_week = Week.query.filter_by(
-        class_id=class_id, 
+        category_id=category_id, 
         week_number=data['week_number']
     ).first()
     
     if existing_week:
-        return jsonify({"error": "Week number already exists for this class"}), 400
+        return jsonify({"error": "Week number already exists for this category"}), 400
     
     # Create new week
     new_week = Week(
-        class_id=class_id,
+        category_id=category_id,
         week_number=data['week_number'],
         title=data['title'],
         display_name=data.get('display_name'),
@@ -195,7 +195,7 @@ def get_all_submissions():
     Admin only - Get all submissions with optional filters.
     
     Query parameters:
-    - class_id: Filter by class ID
+    - category_id: Filter by category ID
     - week_id: Filter by week ID
     - status: Filter by submission status
     
@@ -219,7 +219,7 @@ def get_all_submissions():
     }
     """
     # Get filter parameters
-    class_id = request.args.get('class_id', type=int)
+    category_id = request.args.get('category_id', type=int)
     week_id = request.args.get('week_id', type=int)
     status = request.args.get('status')
     
@@ -227,9 +227,9 @@ def get_all_submissions():
     query = Submission.query
     
     # Apply filters if provided
-    if class_id:
+    if category_id:
         # Join with Week to filter by class_id
-        query = query.join(Week).filter(Week.class_id == class_id)
+        query = query.join(Week).filter(Week.category_id == category_id)
     
     if week_id:
         query = query.filter(Submission.week_id == week_id)

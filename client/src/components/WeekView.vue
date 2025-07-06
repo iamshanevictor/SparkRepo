@@ -1,8 +1,8 @@
 <template>
   <div class="week-view">
     <div class="header">
-      <button class="back-btn" @click="goBack">← Back to Classes</button>
-      <h2>{{ classInfo.name }}: Week {{ weekNumber }}</h2>
+      <button class="back-btn" @click="goBack">← Back to Categories</button>
+      <h2>{{ categoryInfo.name }}: Week {{ weekNumber }}</h2>
     </div>
     
     <div v-if="loading" class="loading">Loading assignment details...</div>
@@ -48,7 +48,7 @@
     
     <UploadForm 
       v-if="showSubmissionForm" 
-      :class-id="classId" 
+      :category-id="categoryId" 
       :week-number="weekNumber"
       :existing-submission="userSubmission"
       @close="showSubmissionForm = false"
@@ -66,7 +66,7 @@ export default {
     UploadForm
   },
   props: {
-    classId: {
+    categoryId: {
       type: Number,
       required: true
     },
@@ -74,7 +74,7 @@ export default {
       type: Number,
       required: true
     },
-    classInfo: {
+    categoryInfo: {
       type: Object,
       required: true
     },
@@ -104,7 +104,7 @@ export default {
     async fetchWeekData() {
       try {
         this.loading = true
-        const response = await fetch(`http://localhost:5000/api/classes/${this.classId}/weeks/${this.weekNumber}?include_submissions=true`)
+        const response = await fetch(`http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}?include_submissions=true`)
         if (!response.ok) {
           throw new Error(`Error fetching week data: ${response.statusText}`)
         }

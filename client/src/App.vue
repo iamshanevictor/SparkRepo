@@ -1,5 +1,5 @@
 <script>
-import ClassList from './components/ClassList.vue'
+import CategoryList from './components/CategoryList.vue'
 import WeekView from './components/WeekView.vue'
 import LoginForm from './components/LoginForm.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
@@ -7,15 +7,15 @@ import AdminDashboard from './components/AdminDashboard.vue'
 export default {
   name: 'App',
   components: {
-    ClassList,
+    CategoryList,
     WeekView,
     LoginForm,
     AdminDashboard
   },
   data() {
     return {
-      currentView: 'classes',
-      selectedClass: null,
+      currentView: 'categories',
+      selectedCategory: null,
       selectedWeek: null,
       // Mock student ID for demo purposes
       // In a real app, this would come from authentication
@@ -46,14 +46,14 @@ export default {
     }
   },
   methods: {
-    handleClassSelected(classItem) {
-      this.selectedClass = classItem
+    handleCategorySelected(categoryItem) {
+      this.selectedCategory = categoryItem
       this.currentView = 'weeks'
       this.selectedWeek = 1 // Default to first week
     },
-    goBackToClasses() {
-      this.currentView = 'classes'
-      this.selectedClass = null
+    goBackToCategories() {
+      this.currentView = 'categories'
+      this.selectedCategory = null
       this.selectedWeek = null
     },
     selectWeek(weekNumber) {
@@ -70,11 +70,11 @@ export default {
     handleLogout() {
       this.isAdmin = false
       this.adminView = 'login'
-      this.currentView = 'classes'
+      this.currentView = 'categories'
     },
     goToStudentView() {
       this.isAdmin = false
-      this.currentView = 'classes'
+      this.currentView = 'categories'
     }
   }
 }
@@ -109,10 +109,10 @@ export default {
       </header>
 
       <main>
-        <!-- Class Selection View -->
-        <ClassList 
-          v-if="currentView === 'classes'"
-          @class-selected="handleClassSelected"
+        <!-- Category Selection View -->
+        <CategoryList 
+          v-if="currentView === 'categories'"
+          @category-selected="handleCategorySelected"
         />
         
         <!-- Week View with Weeks Navigation -->
@@ -133,11 +133,11 @@ export default {
           
           <div class="week-content">
             <WeekView 
-              :class-id="selectedClass.id"
+              :category-id="selectedCategory.id"
               :week-number="selectedWeek"
-              :class-info="selectedClass"
+              :category-info="selectedCategory"
               :student-id="studentId"
-              @go-back="goBackToClasses"
+              @go-back="goBackToCategories"
             />
           </div>
         </div>

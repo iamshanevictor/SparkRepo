@@ -4,21 +4,20 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
-class Class(db.Model):
-    """Class model representing a classroom group."""
-    __tablename__ = 'classes'
+class Category(db.Model):
+    """Category model representing a project type, e.g., Scratch or Canva."""
+    __tablename__ = 'categories'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    weeks = db.relationship('Week', back_populates='class_', cascade='all, delete-orphan')
-    students = db.relationship('Student', back_populates='class_', cascade='all, delete-orphan')
+    weeks = db.relationship('Week', back_populates='category', cascade='all, delete-orphan')
     
     def __repr__(self):
-        return f'<Class {self.name}>'
+        return f'<Category {self.name}>'
     
     def to_dict(self):
         return {
@@ -65,7 +64,7 @@ class Week(db.Model):
     __tablename__ = 'weeks'
     
     id = db.Column(db.Integer, primary_key=True)
-    class_id = db.Column(db.Integer, db.ForeignKey('classes.id'), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     week_number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(100), nullable=False)
     display_name = db.Column(db.String(100), nullable=True)  # Added for flexible naming
@@ -77,20 +76,20 @@ class Week(db.Model):
     last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    class_ = db.relationship('Class', back_populates='weeks')
+    category = db.relationship('Category', back_populates='weeks')
     submissions = db.relationship('Submission', back_populates='week', cascade='all, delete-orphan')
     
     __table_args__ = (
-        db.UniqueConstraint('class_id', 'week_number', name='unique_class_week'),
+        db.UniqueConstraint('category_id', 'week_number', name='unique_category_week'),
     )
     
     def __repr__(self):
-        return f'<Week {self.week_number} for Class {self.class_id}>'
+        return f'<Week {self.week_number} for Category {self.category_id}>'
     
     def to_dict(self):
         return {
             'id': self.id,
-            'class_id': self.class_id,
+            'category_id': self.category_id,
             'week_number': self.week_number,
             'title': self.title,
             'display_name': self.display_name or self.title,
@@ -109,11 +108,9 @@ class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False, unique=True)
-    class_id = db.Column(db.Integer, db.ForeignKey('classes.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    class_ = db.relationship('Class', back_populates='students')
     submissions = db.relationship('Submission', back_populates='student', cascade='all, delete-orphan')
     
     def __repr__(self):
@@ -123,8 +120,7 @@ class Student(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'email': self.email,
-            'class_id': self.class_id
+            'email': self.email
         }
 
 
