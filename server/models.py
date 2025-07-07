@@ -101,35 +101,12 @@ class Week(db.Model):
         }
 
 
-class Student(db.Model):
-    """Student model representing a student user."""
-    __tablename__ = 'students'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), nullable=False, unique=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    submissions = db.relationship('Submission', back_populates='student', cascade='all, delete-orphan')
-    
-    def __repr__(self):
-        return f'<Student {self.name}>'
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email': self.email
-        }
-
-
 class Submission(db.Model):
     """Submission model representing a student's project link submission."""
     __tablename__ = 'submissions'
     
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
+    student_name = db.Column(db.String(100), nullable=False)
     week_id = db.Column(db.Integer, db.ForeignKey('weeks.id'), nullable=False)
     project_type = db.Column(db.String(50), nullable=False, default='scratch')  # 'scratch' or 'canva'
     project_url = db.Column(db.String(255), nullable=False)
@@ -141,22 +118,16 @@ class Submission(db.Model):
     modified_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Track who modified it
     
     # Relationships
-    student = db.relationship('Student', back_populates='submissions')
     week = db.relationship('Week', back_populates='submissions')
     admin = db.relationship('User', foreign_keys=[modified_by], backref='modified_submissions')
     
-    __table_args__ = (
-        db.UniqueConstraint('student_id', 'week_id', name='unique_student_week_submission'),
-    )
-    
     def __repr__(self):
-        return f'<Submission by Student {self.student_id} for Week {self.week.week_number}>'
+        return f'<Submission by {self.student_name} for Week {self.week.week_number}>'
     
     def to_dict(self):
         return {
             'id': self.id,
-            'student_id': self.student_id,
-            'student_name': self.student.name,
+            'student_name': self.student_name,
             'week_id': self.week_id,
             'week_number': self.week.week_number,
             'week_title': self.week.display_name or self.week.title,
@@ -169,23 +140,3 @@ class Submission(db.Model):
             'last_modified': self.last_modified.isoformat()
         }
 
-
-class ProjectSubmission(db.Model):
-    """A simple model for project submissions."""
-    __tablename__ = 'project_submissions'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    project_link = db.Column(db.String(255), nullable=False)
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<ProjectSubmission {self.name}>'
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'project_link': self.project_link,
-            'submitted_at': self.submitted_at.isoformat()
-        }

@@ -702,11 +702,13 @@ export default {
   cursor: pointer;
   font-size: 16px;
   border-bottom: 3px solid transparent;
+  color: #555;
 }
 
 .tab-btn.active {
   border-bottom-color: #4CAF50;
   font-weight: bold;
+  color: #000;
 }
 
 .section-header {

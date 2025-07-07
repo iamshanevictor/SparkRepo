@@ -24,7 +24,7 @@ if (-not (Test-Path ".\.venv\.requirements_installed") -or
     pip install -r requirements.txt
     Get-Date | Out-File -FilePath ".\.venv\.requirements_installed"
 }
-;
+
 # Check if database exists, if not, run seed script
 if (-not (Test-Path ".\sparkrepo.db")) {
     Write-Host "Initializing database with sample data..." -ForegroundColor Yellow

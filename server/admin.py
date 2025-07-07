@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import db, Week, Submission, Category, Student, User
+from models import db, Week, Submission, Category, User
 from auth import admin_required
 from datetime import datetime
 

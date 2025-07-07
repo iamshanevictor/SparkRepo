@@ -2,7 +2,7 @@
   <div class="upload-form-overlay">
     <div class="upload-form">
       <div class="form-header">
-        <h3>{{ isUpdate ? 'Update Your Submission' : 'Submit Your Project' }}</h3>
+        <h3>Submit Your Canva Project</h3>
         <button class="close-btn" @click="close">×</button>
       </div>
       
@@ -10,10 +10,10 @@
       
       <form @submit.prevent="submitForm">
         <div class="form-group">
-          <label for="full-name">Full Name:</label>
+          <label for="student-name">Full Name:</label>
           <input 
-            id="full-name"
-            v-model="formData.fullName"
+            id="student-name"
+            v-model="formData.student_name"
             type="text" 
             placeholder="Enter your full name"
             required
@@ -22,16 +22,16 @@
         </div>
 
         <div class="form-group">
-          <label for="project-url">{{ projectUrlLabel }}:</label>
+          <label for="project-url">Canva Project URL:</label>
           <input 
             id="project-url"
             v-model="formData.projectUrl"
             type="url" 
-            :placeholder="projectUrlPlaceholder"
+            placeholder="https://www.canva.com/design/your-design-id/view"
             required
             :disabled="isSubmitting"
           />
-          <small>{{ projectUrlHint }}</small>
+          <small>Please enter the shareable URL of your Canva project</small>
         </div>
         
         <div class="form-group">
@@ -63,7 +63,7 @@
               <span class="spinner"></span> Submitting...
             </span>
             <span v-else>
-              {{ isUpdate ? 'Update Submission' : 'Submit Project' }}
+              Submit Project
             </span>
           </button>
         </div>
@@ -74,29 +74,21 @@
 
 <script>
 export default {
-  name: 'UploadForm',
+  name: 'CanvaUploadForm',
   props: {
     categoryId: {
       type: Number,
       required: true
     },
-    categoryInfo: {
-      type: Object,
-      required: true
-    },
     weekNumber: {
       type: Number,
       required: true
-    },
-    existingSubmission: {
-      type: Object,
-      default: null
     }
   },
   data() {
     return {
       formData: {
-        fullName: '',
+        student_name: '',
         projectUrl: '',
         comment: ''
       },
@@ -105,88 +97,53 @@ export default {
     }
   },
   computed: {
-    projectType() {
-      return this.categoryInfo ? this.categoryInfo.project_type : 'scratch';
-    },
-    isUpdate() {
-      return this.existingSubmission !== null
-    },
     isValidUrl() {
       const url = this.formData.projectUrl.trim();
       if (!url) return false;
-
-      if (this.projectType === 'scratch') {
-        return url.startsWith('https://scratch.mit.edu/projects/');
-      } else if (this.projectType === 'canva') {
-        return url.startsWith('https://www.canva.com/design/');
-      }
-      return false;
-    },
-    projectUrlLabel() {
-      return this.projectType === 'scratch' ? 'Scratch Project URL' : 'Canva Project URL';
-    },
-    projectUrlPlaceholder() {
-      return this.projectType === 'scratch' 
-        ? 'https://scratch.mit.edu/projects/123456' 
-        : 'https://www.canva.com/design/your-design-id/view';
-    },
-    projectUrlHint() {
-      return this.projectType === 'scratch'
-        ? 'Please enter the full URL to your Scratch project'
-        : 'Please enter the shareable URL of your Canva project';
-    }
-  },
-  created() {
-    // Pre-fill form if updating an existing submission
-    if (this.existingSubmission) {
-      this.formData.fullName = this.existingSubmission.student_name || '';
-      this.formData.projectUrl = this.existingSubmission.project_url;
-      this.formData.comment = this.existingSubmission.comment || '';
+      return url.startsWith('https://www.canva.com/design/');
     }
   },
   methods: {
     async submitForm() {
-      if (!this.formData.fullName.trim()) {
+      if (!this.formData.student_name.trim()) {
         this.error = 'Please enter your full name.';
         return;
       }
       if (!this.isValidUrl) {
-        this.error = `Please enter a valid ${this.projectType === 'scratch' ? 'Scratch' : 'Canva'} project URL`;
+        this.error = `Please enter a valid Canva project URL`;
         return;
       }
       
+      this.isSubmitting = true;
+      this.error = null;
+
+      const submissionData = {
+        student_name: this.formData.student_name,
+        project_url: this.formData.projectUrl,
+        comment: this.formData.comment || null
+      };
+
       try {
-        this.isSubmitting = true
-        this.error = null
-        
-        const response = await fetch(
-          `http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}/submissions`, 
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              full_name: this.formData.fullName,
-              project_type: this.projectType,
-              project_url: this.formData.projectUrl,
-              comment: this.formData.comment || null
-            })
-          }
-        )
-        
+        const response = await fetch(`http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}/submissions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(submissionData)
+        });
+
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to submit project')
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to submit project');
         }
-        
-        const submission = await response.json()
-        this.$emit('submission-complete', submission)
+
+        const submission = await response.json();
+        this.$emit('submission-complete', submission);
       } catch (err) {
-        this.error = err.message
-        console.error('Submission error:', err)
+        this.error = err.message;
+        console.error('Submission error:', err);
       } finally {
-        this.isSubmitting = false
+        this.isSubmitting = false;
       }
     },
     close() {

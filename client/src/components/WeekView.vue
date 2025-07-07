@@ -25,33 +25,17 @@
       </div>
       
       <div class="submission-section">
-        <h4>Your Submission</h4>
-        <div v-if="hasSubmitted" class="existing-submission">
-          <p>You've already submitted a project for this week:</p>
-          <a :href="userSubmission.project_url" target="_blank" rel="noopener noreferrer" class="submission-link">
-            {{ userSubmission.project_url }}
-          </a>
-          <p v-if="userSubmission.comment" class="comment">
-            <strong>Your comment:</strong> {{ userSubmission.comment }}
-          </p>
-          <p class="submitted-date">
-            Submitted on {{ formatDate(userSubmission.submitted_at) }}
-          </p>
-          <button @click="showSubmissionForm = true" class="update-btn">Update Submission</button>
-        </div>
-        <div v-else>
-          <p>You haven't submitted a project for this week yet.</p>
-          <button @click="showSubmissionForm = true" class="submit-btn">Submit Your Project</button>
-        </div>
+        <h4>Ready to Submit?</h4>
+        <p>Click the button below to upload your project for this week.</p>
+        <button @click="showSubmissionForm = true" class="submit-btn">Submit Your Project</button>
       </div>
     </div>
     
-    <UploadForm 
+    <component 
+      :is="submissionFormComponent" 
       v-if="showSubmissionForm" 
       :category-id="categoryId" 
-      :category-info="categoryInfo"
       :week-number="weekNumber"
-      :existing-submission="userSubmission"
       @close="showSubmissionForm = false"
       @submission-complete="handleSubmissionComplete"
     />
@@ -59,12 +43,14 @@
 </template>
 
 <script>
-import UploadForm from './UploadForm.vue'
+import ScratchUploadForm from './ScratchUploadForm.vue';
+import CanvaUploadForm from './CanvaUploadForm.vue';
 
 export default {
   name: 'WeekView',
   components: {
-    UploadForm
+    ScratchUploadForm,
+    CanvaUploadForm
   },
   props: {
     categoryId: {
@@ -79,10 +65,7 @@ export default {
       type: Object,
       required: true
     },
-    studentId: {
-      type: Number,
-      required: true
-    }
+
   },
   data() {
     return {
@@ -90,12 +73,15 @@ export default {
       loading: true,
       error: null,
       showSubmissionForm: false,
-      userSubmission: null
     }
   },
   computed: {
-    hasSubmitted() {
-      return this.userSubmission !== null
+    submissionFormComponent() {
+      const categoryName = this.categoryInfo.name ? this.categoryInfo.name.toLowerCase() : '';
+      if (categoryName.includes('canva')) {
+        return 'CanvaUploadForm';
+      }
+      return 'ScratchUploadForm';
     }
   },
   mounted() {
@@ -105,19 +91,11 @@ export default {
     async fetchWeekData() {
       try {
         this.loading = true
-        const response = await fetch(`http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}?include_submissions=true`)
+        const response = await fetch(`http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}`)
         if (!response.ok) {
           throw new Error(`Error fetching week data: ${response.statusText}`)
         }
         this.weekData = await response.json()
-        
-        // Find the user's submission if it exists
-        if (this.weekData.submissions) {
-          this.userSubmission = this.weekData.submissions.find(
-            sub => sub.student_id === this.studentId
-          ) || null
-        }
-        
         this.loading = false
       } catch (err) {
         this.error = err.message
@@ -140,9 +118,10 @@ export default {
       this.$emit('go-back')
     },
     handleSubmissionComplete(submission) {
-      this.userSubmission = submission
       this.showSubmissionForm = false
-      this.fetchWeekData() // Refresh data
+      // Optionally, show a success message
+      alert('Your project has been submitted successfully!')
+      this.goBack()
     }
   }
 }

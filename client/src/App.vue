@@ -3,6 +3,7 @@ import CategoryList from './components/CategoryList.vue'
 import WeekView from './components/WeekView.vue'
 import LoginForm from './components/LoginForm.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
+import StudentIdentifier from './components/StudentIdentifier.vue'
 
 export default {
   name: 'App',
@@ -10,21 +11,17 @@ export default {
     CategoryList,
     WeekView,
     LoginForm,
-    AdminDashboard
+    AdminDashboard,
   },
   data() {
     return {
-      currentView: 'categories',
+      currentView: 'categories', // Start with category selection
       selectedCategory: null,
       selectedWeek: null,
-      // Mock student ID for demo purposes
-      // In a real app, this would come from authentication
-      studentId: 1,
       // Admin authentication
       isAdmin: false,
       adminView: 'login',  // 'login' or 'dashboard'
       showAdminButton: true,
-
     }
   },
   created() {
@@ -97,7 +94,7 @@ export default {
     </div>
     
     <!-- Student View -->
-    <div v-else class="student-view">
+    <div v-if="!isAdmin" class="student-view">
       <header>
         <div class="logo-container">
           <img src="./assets/vue.svg" class="logo" alt="Vue logo" />
@@ -138,7 +135,6 @@ export default {
               :category-id="selectedCategory.id"
               :week-number="selectedWeek"
               :category-info="selectedCategory"
-              :student-id="studentId"
               @go-back="goBackToCategories"
             />
           </div>

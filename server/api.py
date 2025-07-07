@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, Blueprint
-from models import db, Category, Week, Student, Submission, ProjectSubmission
+from models import db, Category, Week, Submission
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 
@@ -95,141 +95,39 @@ def get_week_assignment(category_id, week_number):
 def submit_project(category_id, week_number):
     """
     Submit a project link for a specific week.
-    
-    Example request:
-    {
-        "full_name": "John Doe",
-        "project_url": "https://scratch.mit.edu/projects/123456",
-        "comment": "This is my first Scratch project!"
-    }
-    
-    Example response:
-    {
-        "id": 1,
-        "student_id": 1,
-        "student_name": "John Doe",
-        "week_id": 1,
-        "week_number": 1,
-        "project_url": "https://scratch.mit.edu/projects/123456",
-        "comment": "This is my first Scratch project!",
-        "submitted_at": "2025-05-28T14:30:00"
-    }
     """
+    data = request.get_json()
+    if not data:
+        return handle_error("No data provided", 400)
+
+    # Validate required fields
+    required_fields = ['student_name', 'project_url']
+    if not all(field in data and data[field] for field in required_fields):
+        return handle_error("Missing required fields: student_name, project_url", 400)
+
     try:
-        # Validate request data
-        data = request.get_json()
-        if not data:
-            return handle_error("No data provided", 400)
-        
-        required_fields = ['full_name', 'project_url']
-        for field in required_fields:
-            if field not in data:
-                return handle_error(f"Missing required field: {field}", 400)
-
-        project_type = data.get('project_type', 'scratch')
-        project_url = data['project_url']
-
-        # Validate URL format based on project type
-        if project_type == 'scratch' and not project_url.startswith('https://scratch.mit.edu/projects/'):
-            return handle_error("Invalid Scratch project URL", 400)
-        elif project_type == 'canva' and not project_url.startswith('https://www.canva.com/design/'):
-            return handle_error("Invalid Canva project URL", 400)
-        elif project_type not in ['scratch', 'canva']:
-            return handle_error("Invalid project type specified", 400)
-        
-        # Get the week
+        # Find the week for the submission
         week = Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
+
+        # Create a new submission
+        submission = Submission(
+            student_name=data['student_name'],
+            week_id=week.id,
+            project_url=data['project_url'],
+            comment=data.get('comment'),
+            project_type=week.category.name.lower()  # Set project_type from category
+        )
+        db.session.add(submission)
+        db.session.commit()
         
-        # Find or create the student by name
-        student = Student.query.filter_by(name=data['full_name']).first()
-        if not student:
-            student = Student(name=data['full_name'])
-            db.session.add(student)
-            db.session.commit() # Commit to get the student ID
-        
-        # Check if submission already exists
-        existing_submission = Submission.query.filter_by(
-            student_id=student.id, 
-            week_id=week.id
-        ).first()
-        
-        if existing_submission:
-            # Update existing submission
-            existing_submission.project_type = data.get('project_type', 'scratch')
-            existing_submission.project_url = data['project_url']
-            existing_submission.comment = data.get('comment')
-            existing_submission.last_modified = datetime.utcnow()
-            db.session.commit()
-            return jsonify(existing_submission.to_dict())
-        else:
-            # Create new submission
-            submission = Submission(
-                student_id=student.id,
-                week_id=week.id,
-                project_type=data.get('project_type', 'scratch'),
-                project_url=data['project_url'],
-                comment=data.get('comment')
-            )
-            db.session.add(submission)
-            db.session.commit()
-            return jsonify(submission.to_dict()), 201
-            
-    except IntegrityError:
+        return jsonify(submission.to_dict()), 201
+
+    except IntegrityError as e:
         db.session.rollback()
-        return handle_error("Database integrity error. Submission may already exist.", 400)
+        return handle_error(f"Database integrity error: {e}", 400)
     except Exception as e:
         db.session.rollback()
-        return handle_error(e, 500)
-
-# Additional routes for student management
-
-# GET /students - List all students
-@api.route('/students', methods=['GET'])
-def get_students():
-    """
-    Returns a list of all students.
-    
-    Example response:
-    [
-        {
-            "id": 1,
-            "name": "John Doe",
-            "email": "john@example.com"
-        }
-    ]
-    """
-    try:
-        students = Student.query.all()
-        return jsonify([student.to_dict() for student in students])
-    except Exception as e:
-        return handle_error(e, 500)
-
-# GET /students/{id}/submissions - Get all submissions for a student
-@api.route('/students/<int:student_id>/submissions', methods=['GET'])
-def get_student_submissions(student_id):
-    """
-    Returns all submissions for a specific student.
-    
-    Example response:
-    [
-        {
-            "id": 1,
-            "student_id": 1,
-            "student_name": "John Doe",
-            "week_id": 1,
-            "week_number": 1,
-            "project_url": "https://scratch.mit.edu/projects/123456",
-            "comment": "This is my first Scratch project!",
-            "submitted_at": "2025-05-28T14:30:00"
-        }
-    ]
-    """
-    try:
-        Student.query.get_or_404(student_id)  # Check if student exists
-        submissions = Submission.query.filter_by(student_id=student_id).all()
-        return jsonify([sub.to_dict() for sub in submissions])
-    except Exception as e:
-        return handle_error(e, 500)
+        return handle_error(str(e), 500)
 
 
 # --- Project Submission Routes ---
