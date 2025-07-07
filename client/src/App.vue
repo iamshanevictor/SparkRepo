@@ -3,7 +3,6 @@ import CategoryList from './components/CategoryList.vue'
 import WeekView from './components/WeekView.vue'
 import LoginForm from './components/LoginForm.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
-import SubmissionForm from './components/SubmissionForm.vue'
 
 export default {
   name: 'App',
@@ -11,8 +10,7 @@ export default {
     CategoryList,
     WeekView,
     LoginForm,
-    AdminDashboard,
-    SubmissionForm
+    AdminDashboard
   },
   data() {
     return {
@@ -49,12 +47,6 @@ export default {
     }
   },
   methods: {
-    handleProjectSubmitted(project) {
-      // This will be wired up to an API call
-      console.log('Project submitted:', project);
-      alert('Project submitted successfully!');
-      this.currentView = 'categories'; // Or wherever you want to redirect
-    },
     handleCategorySelected(categoryItem) {
       this.selectedCategory = categoryItem
       this.currentView = 'weeks'
@@ -114,16 +106,12 @@ export default {
         <div class="header-right">
           <p class="tagline">Upload and share your Scratch projects</p>
           <button v-if="showAdminButton" class="admin-btn" @click="toggleAdminView">Admin</button>
-          <button @click="currentView = 'submission'">Submission Form</button>
         </div>
       </header>
 
       <main>
         <!-- Category Selection View -->
-        <div v-if="currentView === 'submission'">
-          <SubmissionForm @project-submitted="handleProjectSubmitted" />
-        </div>
-        <div v-else-if="currentView === 'categories'">
+        <div v-if="currentView === 'categories'">
           <CategoryList 
             @category-selected="handleCategorySelected"
           />

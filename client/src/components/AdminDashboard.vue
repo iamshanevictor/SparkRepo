@@ -18,12 +18,7 @@
       >
         Manage Submissions
       </button>
-      <button 
-        :class="['tab-btn', { active: activeTab === 'projectSubmissions' }]" 
-        @click="activeTab = 'projectSubmissions'"
-      >
-        Project Submissions
-      </button>
+
     </div>
     
     <!-- Weeks Management Tab -->
@@ -331,40 +326,6 @@
       </div>
     </div>
 
-    <!-- Project Submissions Tab -->
-    <div v-if="activeTab === 'projectSubmissions'" class="tab-content">
-      <div class="section-header">
-        <h3>Project Submissions</h3>
-      </div>
-      <div v-if="loading.projectSubmissions" class="loading">Loading submissions...</div>
-      <div v-else-if="error.projectSubmissions" class="error">{{ error.projectSubmissions }}</div>
-      <div v-else-if="projectSubmissions.length === 0" class="no-data">
-        No project submissions found.
-      </div>
-      <div v-else class="submissions-list">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Project Link</th>
-              <th>Submitted At</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="sub in projectSubmissions" :key="sub.id">
-              <td>{{ sub.name }}</td>
-              <td>
-                <a :href="sub.project_link" target="_blank" rel="noopener noreferrer">
-                  {{ sub.project_link }}
-                </a>
-              </td>
-              <td>{{ formatDate(sub.submitted_at) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
   </div>
 </template>
 
@@ -377,7 +338,6 @@ export default {
       weeks: [],
       classes: [],
       submissions: [],
-      projectSubmissions: [],
       filters: {
         class_id: '',
         week_id: '',
@@ -391,13 +351,11 @@ export default {
         addWeek: false,
         updateSubmission: false,
         deleteSubmission: false,
-        projectSubmissions: false
       },
       error: {
         weeks: null,
         classes: null,
         submissions: null,
-        projectSubmissions: null
       },
       showEditWeekForm: false,
       showAddWeekForm: false,
@@ -414,13 +372,6 @@ export default {
         description: '',
         assignment_url: '',
         due_date_local: ''
-      }
-    }
-  },
-  watch: {
-    activeTab(newTab) {
-      if (newTab === 'projectSubmissions' && this.projectSubmissions.length === 0) {
-        this.fetchProjectSubmissions();
       }
     }
   },
@@ -491,26 +442,6 @@ export default {
       }
     },
     
-    async fetchProjectSubmissions() {
-      this.loading.projectSubmissions = true;
-      this.error.projectSubmissions = null;
-      try {
-        const response = await fetch('/api/project-submissions', {
-          headers: this.getAuthHeaders(),
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch project submissions');
-        }
-        this.projectSubmissions = await response.json();
-      } catch (err) {
-        this.error.projectSubmissions = err.message;
-        console.error('Error fetching project submissions:', err);
-      } finally {
-        this.loading.projectSubmissions = false;
-      }
-    },
-
     async fetchSubmissions() {
       this.loading.submissions = true
       this.error.submissions = null
