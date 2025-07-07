@@ -1,6 +1,6 @@
 # SparkRepo
 
-SparkRepo is a full-stack web application designed to help manage student submissions for classes that use Scratch or Canva. It provides a simple interface for instructors to view student projects, track submissions, and manage classes.
+SparkRepo is a full-stack web application designed to help manage student submissions for project-based learning, such as Scratch or Canva. It provides a simple interface for instructors to create assignment categories and weeks, and for students to submit their work directly without needing to log in.
 
 The project is built with a Vue.js frontend and a Flask (Python) backend.
 
@@ -31,41 +31,13 @@ git clone <repository-url>
 cd SparkRepo
 ```
 
-### 2. Configure the Backend
+### 2. Run the Application
 
-Navigate to the server directory and set up the environment variables.
-
-1.  **Go to the `server` directory:**
-    ```sh
-    cd server
-    ```
-
-2.  **Create a `.env` file:**
-    Copy the example environment file:
-    ```sh
-    cp .env.example .env
-    ```
-
-3.  **Generate a JWT Secret Key:**
-    Run the following command to generate a secure secret key:
-    ```sh
-    python -c "import secrets; print(secrets.token_hex(32))"
-    ```
-
-4.  **Update the `.env` file:**
-    Open the `.env` file and paste the generated key as the value for `JWT_SECRET_KEY`.
-
-    ```
-    JWT_SECRET_KEY=your_generated_secret_key_here
-    ```
-
-### 3. Run the Application
-
-You need to run both the backend and frontend servers simultaneously in two separate terminals.
+You need to run both the backend and frontend servers simultaneously in two separate terminals. No manual configuration is needed.
 
 **Terminal 1: Run the Backend (Flask)**
 
-1.  Make sure you are in the `server` directory.
+1.  Navigate to the `server` directory.
 2.  Execute the run script:
     ```powershell
     .\run_backend.ps1
@@ -94,92 +66,65 @@ You need to run both the backend and frontend servers simultaneously in two sepa
     -   Checks for a `.venv` virtual environment and creates one if it doesn't exist.
     -   Activates the virtual environment.
     -   Installs Python packages from `requirements.txt`.
-    -       -   Initializes the SQLite database (`sparkrepo.db`) and seeds it with sample data on the first run.
+    -   Initializes the SQLite database (`sparkrepo.db`) and seeds it with sample data via `seed.py` on the first run.
     -   Starts the Flask development server.
 
 -   `client/run_frontend.ps1`:
     -   Checks for a `node_modules` directory and runs `npm install` if it doesn't exist.
     -   Starts the Vite development server with Hot-Module-Reloading (HMR) enabled.
 
-
-
-### Backend Deployment
-
-1. Set up a virtual environment on your VM:
-   ```
-   python -m venv venv
-   source venv/bin/activate  # Linux/macOS
-   pip install -r requirements.txt
-   ```
-
-2. Configure a production WSGI server (Gunicorn recommended):
-   ```
-   pip install gunicorn
-   gunicorn -w 4 -b 0.0.0.0:5000 'app:create_app()'
-   ```
-
-3. Set up a reverse proxy with Nginx or Apache to forward requests to the Flask application.
-
-### Frontend Deployment
-
-1. Build the Vue.js application:
-   ```
-   cd client
-   npm run build
-   ```
-
-2. Copy the contents of the `dist` directory to your web server's static files directory.
-
-3. Configure your web server to serve the static files and proxy API requests to the Flask backend.
-
 ## API Documentation
 
 ### Available Endpoints
 
-- `GET /api/classes` - List all available classes
-- `GET /api/classes/{id}` - Get details for a specific class
-- `GET /api/classes/{id}/weeks` - List all weeks for a class
-- `GET /api/classes/{id}/weeks/{week}` - Get a specific week's assignment
-- `POST /api/classes/{id}/weeks/{week}/submissions` - Submit a project link
-- `GET /api/students` - List all students (with optional class_id filter)
-- `GET /api/students/{id}/submissions` - Get all submissions for a student
+- `GET /api/categories` - List all available categories.
+- `GET /api/categories/{id}` - Get details for a specific category.
+- `GET /api/categories/{id}/weeks` - List all weeks for a category.
+- `GET /api/categories/{id}/weeks/{week_number}` - Get a specific week's assignment.
+- `POST /api/submissions` - Submit a project link for a specific week.
+- `GET /api/submissions` - Get all submissions, with optional filters for `week_id` or `category_id`.
+- `GET /api/admin/weeks` - Get all weeks for the admin dashboard.
+- `POST /api/admin/weeks` - Add a new week.
+- `PUT /api/admin/weeks/{id}` - Update an existing week.
 
-See the comments in `api.py` for detailed request/response examples for each endpoint.
+See `server/api.py` and `server/admin.py` for more details.
 
 ## Database Schema
 
 The application uses SQLite with the following tables:
 
-- **classes**: Stores information about each class
-  - id (PK)
-  - name
-  - description
-  - created_at
+- **categories**: Stores course categories.
+  - `id` (PK)
+  - `name`
+  - `description`
 
-- **weeks**: Stores weekly assignments for each class
-  - id (PK)
-  - class_id (FK to classes.id)
-  - week_number
-  - title
-  - description
-  - assignment_url
-  - due_date
-  - created_at
+- **weeks**: Stores weekly assignments for each category.
+  - `id` (PK)
+  - `category_id` (FK to categories.id)
+  - `week_number`
+  - `title`
+  - `display_name`
+  - `description`
+  - `assignment_url`
+  - `due_date`
+  - `is_active`
 
-- **students**: Stores student information
-  - id (PK)
-  - name
-  - email
-  - class_id (FK to classes.id)
-  - created_at
+- **submissions**: Stores project link submissions from students.
+  - `id` (PK)
+  - `student_name` (String)
+  - `week_id` (FK to weeks.id)
+  - `project_type`
+  - `project_url`
+  - `comment`
+  - `status`
+  - `submitted_at`
 
-- **submissions**: Stores project link submissions
-  - id (PK)
-  - student_id (FK to students.id)
-  - week_id (FK to weeks.id)
-  - project_url
-  - comment
-  - submitted_at
+- **users**: Stores admin user information.
+  - `id` (PK)
+  - `username`
+  - `email`
+  - `password_hash`
+  - `is_admin`
 
 ## License
 
