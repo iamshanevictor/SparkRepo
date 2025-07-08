@@ -43,6 +43,7 @@
 </template>
 
 <script>
+import { api } from '../api';
 import ScratchUploadForm from './ScratchUploadForm.vue';
 import CanvaUploadForm from './CanvaUploadForm.vue';
 
@@ -87,7 +88,7 @@ export default {
     weekNumber: {
       immediate: true,
       handler(newWeek) {
-        if (newWeek) {
+        if (newWeek !== null && newWeek !== undefined) {
           this.fetchWeekData();
         }
       }
@@ -96,17 +97,14 @@ export default {
   methods: {
     async fetchWeekData() {
       try {
-        this.loading = true
-        const response = await fetch(`http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}`)
-        if (!response.ok) {
-          throw new Error(`Error fetching week data: ${response.statusText}`)
-        }
-        this.weekData = await response.json()
-        this.loading = false
-      } catch (err) {
-        this.error = err.message
-        this.loading = false
-        console.error('Failed to fetch week data:', err)
+        this.loading = true;
+        this.error = null;
+        this.weekData = await api.getWeek(this.categoryId, this.weekNumber);
+      } catch (error) {
+        console.error('Error fetching week data:', error);
+        this.error = error.message || 'Failed to load week data. Please try again.';
+      } finally {
+        this.loading = false;
       }
     },
     formatDate(dateString) {

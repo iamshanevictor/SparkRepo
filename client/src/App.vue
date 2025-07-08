@@ -1,9 +1,10 @@
 <script>
-import CategoryList from './components/CategoryList.vue'
-import WeekView from './components/WeekView.vue'
-import LoginForm from './components/LoginForm.vue'
-import AdminDashboard from './components/AdminDashboard.vue'
-import StudentIdentifier from './components/StudentIdentifier.vue'
+import { api } from './api';
+import CategoryList from './components/CategoryList.vue';
+import WeekView from './components/WeekView.vue';
+import LoginForm from './components/LoginForm.vue';
+import AdminDashboard from './components/AdminDashboard.vue';
+import ErrorBoundary from './components/ErrorBoundary.vue';
 
 export default {
   name: 'App',
@@ -12,6 +13,7 @@ export default {
     WeekView,
     LoginForm,
     AdminDashboard,
+    ErrorBoundary,
   },
   data() {
     return {
@@ -88,15 +90,11 @@ export default {
     async fetchWeeksForCategory(categoryId) {
       this.loadingWeeks = true;
       try {
-        const response = await fetch(`http://localhost:5000/api/categories/${categoryId}/weeks`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch weeks for category');
-        }
-        const weeks = await response.json();
+        const weeks = await api.getWeeks(categoryId);
         this.categoryWeeks = weeks.sort((a, b) => a.week_number - b.week_number);
       } catch (error) {
-        console.error(error);
-        // Handle error appropriately in UI
+        console.error('Error fetching weeks:', error);
+        // Consider showing a user-friendly error message
       } finally {
         this.loadingWeeks = false;
       }
@@ -107,6 +105,7 @@ export default {
 
 <template>
   <div class="app">
+    <ErrorBoundary>
     <!-- Admin View -->
     <div v-if="isAdmin" class="admin-view">
       <LoginForm 
@@ -171,9 +170,10 @@ export default {
       </main>
       
       <footer>
-                <p>&copy; 2025 SparkRepo - A classroom link repository for Scratch projects</p>
+        <p>&copy; 2025 SparkRepo - A classroom link repository for Scratch projects</p>
       </footer>
     </div>
+    </ErrorBoundary>
   </div>
 </template>
 
