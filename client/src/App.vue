@@ -22,6 +22,9 @@ export default {
       isAdmin: false,
       adminView: 'login',  // 'login' or 'dashboard'
       showAdminButton: true,
+      showAdminDashboard: false,
+      categoryWeeks: [],
+      loadingWeeks: false,
     }
   },
   created() {
@@ -44,15 +47,26 @@ export default {
     }
   },
   methods: {
-    handleCategorySelected(categoryItem) {
-      this.selectedCategory = categoryItem
-      this.currentView = 'weeks'
-      this.selectedWeek = 1 // Default to first week
+    async handleCategorySelected(category) {
+      this.selectedCategory = category;
+      this.currentView = 'weeks';
+      this.selectedWeek = null;
+      this.categoryWeeks = [];
+      await this.fetchWeeksForCategory(category.id);
+      if (this.categoryWeeks.length > 0) {
+        this.selectWeek(this.categoryWeeks[0].week_number);
+      }
     },
     goBackToCategories() {
-      this.currentView = 'categories'
-      this.selectedCategory = null
-      this.selectedWeek = null
+      this.currentView = 'categories';
+      this.selectedCategory = null;
+      this.selectedWeek = null;
+      this.categoryWeeks = [];
+    },
+    goHome() {
+      this.selectedCategory = null;
+      this.selectedWeek = null;
+      this.categoryWeeks = [];
     },
     selectWeek(weekNumber) {
       this.selectedWeek = weekNumber
@@ -66,13 +80,26 @@ export default {
       this.adminView = 'dashboard'
     },
     handleLogout() {
-      this.isAdmin = false
-      this.adminView = 'login'
-      this.currentView = 'categories'
+      localStorage.removeItem('token');
+      this.isLoggedIn = false;
+      this.showAdminDashboard = false;
+      this.goHome(); // Reset to student view
     },
-    goToStudentView() {
-      this.isAdmin = false
-      this.currentView = 'categories'
+    async fetchWeeksForCategory(categoryId) {
+      this.loadingWeeks = true;
+      try {
+        const response = await fetch(`http://localhost:5000/api/categories/${categoryId}/weeks`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch weeks for category');
+        }
+        const weeks = await response.json();
+        this.categoryWeeks = weeks.sort((a, b) => a.week_number - b.week_number);
+      } catch (error) {
+        console.error(error);
+        // Handle error appropriately in UI
+      } finally {
+        this.loadingWeeks = false;
+      }
     }
   }
 }
@@ -98,7 +125,7 @@ export default {
       <header>
         <div class="logo-container">
           <img src="./assets/vue.svg" class="logo" alt="Vue logo" />
-                    <h1>SparkRepo</h1>
+          <h1>SparkRepo</h1>
         </div>
         <div class="header-right">
           <p class="tagline">Upload and share your Scratch projects</p>
@@ -116,22 +143,24 @@ export default {
         
         <!-- Week View with Weeks Navigation -->
         <div v-else-if="currentView === 'weeks'" class="week-container">
-          <div class="week-sidebar">
+          <div v-if="selectedCategory && !showAdminDashboard" class="week-sidebar">
             <h3>Weeks</h3>
-            <ul class="week-list">
+            <div v-if="loadingWeeks" class="loading">Loading...</div>
+            <ul v-else class="week-list">
               <li 
-                v-for="weekNum in 10" 
-                :key="weekNum"
-                :class="{ active: selectedWeek === weekNum }"
-                @click="selectWeek(weekNum)"
+                v-for="week in categoryWeeks" 
+                :key="week.id"
+                :class="{ active: week.week_number === selectedWeek }"
+                @click="selectWeek(week.week_number)"
               >
-                Week {{ weekNum }}
+                Week {{ week.week_number }}
               </li>
             </ul>
           </div>
           
           <div class="week-content">
             <WeekView 
+              v-if="selectedWeek"
               :category-id="selectedCategory.id"
               :week-number="selectedWeek"
               :category-info="selectedCategory"
@@ -280,7 +309,9 @@ footer {
   border-radius: 4px;
   cursor: pointer;
   margin-bottom: 0.5rem;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
+  text-align: center;
+  font-weight: 500;
 }
 
 .week-list li:hover {

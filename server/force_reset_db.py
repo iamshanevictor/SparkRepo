@@ -30,16 +30,22 @@ def create_sample_data():
 
     # Create weeks for each category
     weeks = []
-    for i in range(1, 11):
+    # Create weeks 1-6 for Scratch
+    for i in range(1, 7):
         weeks.append(Week(
             category_id=cat1.id, week_number=i, title=f"Week {i}: {get_week_title(i)}",
             display_name=get_week_title(i), description=f"Description for week {i} of beginner Scratch",
             assignment_url=f"https://scratch.mit.edu/projects/example/week{i}",
             due_date=datetime.utcnow() + timedelta(days=i*7), is_active=True
         ))
+
+    # Create weeks 7-12 for Canva
+    for i in range(7, 13):
+        # Adjust week number for title lookup if necessary, or expand titles
+        title_week_num = i - 6 # Reset to 1-6 for lookup in advanced_titles
         weeks.append(Week(
-            category_id=cat2.id, week_number=i, title=f"Week {i}: {get_week_title(i, advanced=True)}",
-            display_name=get_week_title(i, advanced=True), description=f"Description for week {i} of intermediate Canva",
+            category_id=cat2.id, week_number=i, title=f"Week {i}: {get_week_title(title_week_num, advanced=True)}",
+            display_name=get_week_title(title_week_num, advanced=True), description=f"Description for week {i} of intermediate Canva",
             assignment_url=f"https://www.canva.com/design/example/week{i}",
             due_date=datetime.utcnow() + timedelta(days=i*7), is_active=True
         ))

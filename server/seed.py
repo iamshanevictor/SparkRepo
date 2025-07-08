@@ -29,25 +29,22 @@ def seed_database():
 
     # Create sample weeks
     weeks = []
-    for i in range(1, 11):  # 10 weeks for each category
-        # Category 1 weeks
+    # Create weeks 1-6 for Scratch
+    for i in range(1, 7):
         weeks.append(Week(
-            category_id=cat1.id,
-            week_number=i,
-            title=f"Week {i}: {get_week_title(i)}",
-            display_name=get_week_title(i),
-            description=f"Description for week {i} of beginner Scratch",
+            category_id=cat1.id, week_number=i, title=f"Week {i}: {get_week_title(i)}",
+            display_name=get_week_title(i), description=f"Description for week {i} of beginner Scratch",
             assignment_url=f"https://scratch.mit.edu/projects/example/week{i}",
             due_date=datetime.utcnow() + timedelta(days=i*7)
         ))
-        
-        # Category 2 weeks
+
+    # Create weeks 7-12 for Canva
+    for i in range(7, 13):
+        # Adjust week number for title lookup if necessary, or expand titles
+        title_week_num = i - 6 # Reset to 1-6 for lookup in advanced_titles
         weeks.append(Week(
-            category_id=cat2.id,
-            week_number=i,
-            title=f"Week {i}: {get_week_title(i, advanced=True)}",
-            display_name=get_week_title(i, advanced=True),
-            description=f"Description for week {i} of intermediate Canva",
+            category_id=cat2.id, week_number=i, title=f"Week {i}: {get_week_title(title_week_num, advanced=True)}",
+            display_name=get_week_title(title_week_num, advanced=True), description=f"Description for week {i} of intermediate Canva",
             assignment_url=f"https://www.canva.com/design/example/week{i}",
             due_date=datetime.utcnow() + timedelta(days=i*7)
         ))
@@ -58,7 +55,7 @@ def seed_database():
     
     # Create sample submissions
     week1_cat1 = Week.query.filter_by(category_id=cat1.id, week_number=1).first()
-    week1_cat2 = Week.query.filter_by(category_id=cat2.id, week_number=1).first()
+    week1_cat2 = Week.query.filter_by(category_id=cat2.id, week_number=7).first()
 
     if week1_cat1 and week1_cat2:
         submissions = [
@@ -97,12 +94,13 @@ def get_week_title(week_number, advanced=False):
     """Generate a title for each week based on the week number."""
     beginner_titles = [
         "Introduction to Scratch", "Moving Sprites", "Events and Control", "Variables and Data",
-        "Loops and Iteration", "Conditionals", "Custom Blocks", "Lists and Arrays", "Cloning", "Final Project"
+        "Loops and Iteration", "Conditionals", "Custom Blocks", "Lists and Arrays", "Cloning", "Final Project",
+        "Bonus Week 1", "Bonus Week 2"
     ]
     advanced_titles = [
         "Advanced Canva Techniques", "Infographics Design", "Social Media Graphics", "Presentation Design",
         "Video Editing Basics", "Brand Kit Creation", "Interactive Elements", "Advanced Data Visualization",
-        "Collaborative Design", "Capstone Project"
+        "Collaborative Design", "Capstone Project", "Advanced Project 1", "Advanced Project 2"
     ]
     titles = advanced_titles if advanced else beginner_titles
     return titles[week_number - 1] if 1 <= week_number <= len(titles) else "Bonus Week"

@@ -59,13 +59,12 @@ export default {
     },
     weekNumber: {
       type: Number,
-      required: true
+      required: false
     },
     categoryInfo: {
       type: Object,
       required: true
     },
-
   },
   data() {
     return {
@@ -84,8 +83,15 @@ export default {
       return 'ScratchUploadForm';
     }
   },
-  mounted() {
-    this.fetchWeekData()
+  watch: {
+    weekNumber: {
+      immediate: true,
+      handler(newWeek) {
+        if (newWeek) {
+          this.fetchWeekData();
+        }
+      }
+    }
   },
   methods: {
     async fetchWeekData() {
@@ -141,7 +147,7 @@ export default {
 }
 
 .back-btn {
-  background-color: #f8f9fa;
+  background-color: #000000;
   border: 1px solid #dee2e6;
   border-radius: 4px;
   padding: 8px 16px;
