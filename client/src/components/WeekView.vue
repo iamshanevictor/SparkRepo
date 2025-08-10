@@ -60,6 +60,8 @@
 
 <script>
 import UploadForm from './UploadForm.vue'
+import { apiGet } from '../services/apiClient'
+import { formatDate as formatDateUtil } from '../utils/date'
 
 export default {
   name: 'WeekView',
@@ -105,11 +107,7 @@ export default {
     async fetchWeekData() {
       try {
         this.loading = true
-        const response = await fetch(`http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}?include_submissions=true`)
-        if (!response.ok) {
-          throw new Error(`Error fetching week data: ${response.statusText}`)
-        }
-        this.weekData = await response.json()
+        this.weekData = await apiGet(`/api/categories/${this.categoryId}/weeks/${this.weekNumber}?include_submissions=true`)
         
         // Find the user's submission if it exists
         if (this.weekData.submissions) {
@@ -126,15 +124,7 @@ export default {
       }
     },
     formatDate(dateString) {
-      if (!dateString) return 'N/A'
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
+      return formatDateUtil(dateString)
     },
     goBack() {
       this.$emit('go-back')

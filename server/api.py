@@ -1,3 +1,10 @@
+"""Public API blueprint for SparkRepo.
+
+Exposes endpoints for categories, weeks, student submissions, and a simple
+project submissions feed. This module focuses on unauthenticated/public routes
+and student-facing submission flows.
+"""
+
 from flask import Flask, request, jsonify, Blueprint
 from models import db, Category, Week, Student, Submission, ProjectSubmission
 from datetime import datetime

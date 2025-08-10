@@ -1,3 +1,10 @@
+"""Authentication and user management blueprint.
+
+Provides JWT-based login, current-user retrieval, and admin-only user
+management endpoints. The `admin_required` decorator ensures only admin users
+can access protected routes.
+"""
+
 from flask import Blueprint, request, jsonify, current_app, session
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from models import db, User

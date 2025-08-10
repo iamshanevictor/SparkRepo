@@ -1,8 +1,16 @@
+"""Admin endpoints for managing weeks and submissions.
+
+All routes require a valid JWT and admin privileges. This module centralizes
+date parsing via utils.datetime.parse_iso_datetime to ensure consistent
+handling of ISO strings coming from the client.
+"""
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Week, Submission, Category, Student, User
 from auth import admin_required
 from datetime import datetime
+from utils.datetime import parse_iso_datetime
 
 admin_api = Blueprint('admin_api', __name__)
 
@@ -96,7 +104,7 @@ def update_week(week_id):
         week.assignment_url = data['assignment_url']
     if 'due_date' in data and data['due_date']:
         try:
-            week.due_date = datetime.fromisoformat(data['due_date'].replace('Z', '+00:00'))
+            week.due_date = parse_iso_datetime(data['due_date'])
         except ValueError:
             return jsonify({"error": "Invalid date format"}), 400
     if 'is_active' in data:
@@ -174,7 +182,7 @@ def create_week(category_id):
     # Set due date if provided
     if 'due_date' in data and data['due_date']:
         try:
-            new_week.due_date = datetime.fromisoformat(data['due_date'].replace('Z', '+00:00'))
+            new_week.due_date = parse_iso_datetime(data['due_date'])
         except ValueError:
             return jsonify({"error": "Invalid date format"}), 400
     

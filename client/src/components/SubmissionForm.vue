@@ -16,6 +16,7 @@
 </template>
 
 <script>
+import { apiPost } from '../services/apiClient'
 export default {
   name: 'SubmissionForm',
   data() {
@@ -27,22 +28,10 @@ export default {
   methods: {
     async submitProject() {
       try {
-        const response = await fetch('/api/project-submissions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: this.name,
-            project_link: this.projectLink,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-
-        const result = await response.json();
+        const result = await apiPost('/api/project-submissions', {
+          name: this.name,
+          project_link: this.projectLink,
+        })
         console.log('Submission successful:', result);
         alert('Project submitted successfully!');
 

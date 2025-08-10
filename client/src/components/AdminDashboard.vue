@@ -1,3 +1,9 @@
+<!--
+  AdminDashboard.vue
+  High-level admin container with tabs for managing Weeks, Submissions, and
+  Project Submissions. Consider splitting into subcomponents in a future PR.
+  Note: UI copy updated to use "Category" terminology.
+-->
 <template>
   <div class="admin-dashboard">
     <div class="admin-header">
@@ -35,35 +41,8 @@
       
       <div v-if="loading.weeks" class="loading">Loading weeks...</div>
       <div v-else-if="error.weeks" class="error">{{ error.weeks }}</div>
-      <div v-else class="weeks-list">
-        <table>
-          <thead>
-            <tr>
-              <th>Week #</th>
-              <th>Class</th>
-              <th>Title</th>
-              <th>Display Name</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="week in weeks" :key="week.id">
-              <td>{{ week.week_number }}</td>
-              <td>{{ week.class_name }}</td>
-              <td>{{ week.title }}</td>
-              <td>{{ week.display_name }}</td>
-              <td>
-                <span :class="['status', week.is_active ? 'active' : 'inactive']">
-                  {{ week.is_active ? 'Active' : 'Inactive' }}
-                </span>
-              </td>
-              <td>
-                <button class="edit-btn" @click="editWeek(week)">Edit</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else>
+        <AdminWeeksTable :weeks="weeks" @edit="editWeek" />
       </div>
       
       <!-- Edit Week Modal -->
@@ -130,9 +109,9 @@
           
           <form @submit.prevent="addWeek">
             <div class="form-group">
-              <label for="new-class">Class</label>
-              <select id="new-class" v-model="newWeek.class_id" required>
-                <option v-for="cls in classes" :key="cls.id" :value="cls.id">
+              <label for="new-class">Category</label>
+              <select id="new-class" v-model="newWeek.category_id" required>
+                <option v-for="cls in categories" :key="cls.id" :value="cls.id">
                   {{ cls.name }}
                 </option>
               </select>
@@ -185,9 +164,9 @@
       <div class="section-header">
         <h3>Submissions Management</h3>
         <div class="filters">
-          <select v-model="filters.class_id" @change="fetchSubmissions">
-            <option value="">All Classes</option>
-            <option v-for="cls in classes" :key="cls.id" :value="cls.id">
+          <select v-model="filters.category_id" @change="fetchSubmissions">
+            <option value="">All Categories</option>
+            <option v-for="cls in categories" :key="cls.id" :value="cls.id">
               {{ cls.name }}
             </option>
           </select>
@@ -213,40 +192,12 @@
       <div v-else-if="submissions.length === 0" class="no-data">
         No submissions found with the current filters.
       </div>
-      <div v-else class="submissions-list">
-        <table>
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>Week</th>
-              <th>Project URL</th>
-              <th>Status</th>
-              <th>Submitted</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="sub in submissions" :key="sub.id">
-              <td>{{ sub.student_name }}</td>
-              <td>Week {{ sub.week_number }}: {{ sub.week_title }}</td>
-              <td>
-                <a :href="sub.project_url" target="_blank" rel="noopener noreferrer">
-                  {{ sub.project_url.substring(0, 30) }}...
-                </a>
-              </td>
-              <td>
-                <span :class="['status', sub.status]">
-                  {{ sub.status.charAt(0).toUpperCase() + sub.status.slice(1) }}
-                </span>
-              </td>
-              <td>{{ formatDate(sub.submitted_at) }}</td>
-              <td>
-                <button class="edit-btn" @click="editSubmission(sub)">Review</button>
-                <button class="delete-btn" @click="confirmDeleteSubmission(sub)">Delete</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else>
+        <AdminSubmissionsTable
+          :items="submissions"
+          @edit="editSubmission"
+          @delete="confirmDeleteSubmission"
+        />
       </div>
       
       <!-- Edit Submission Modal -->
@@ -333,59 +284,41 @@
 
     <!-- Project Submissions Tab -->
     <div v-if="activeTab === 'projectSubmissions'" class="tab-content">
-      <div class="section-header">
-        <h3>Project Submissions</h3>
-      </div>
-      <div v-if="loading.projectSubmissions" class="loading">Loading submissions...</div>
-      <div v-else-if="error.projectSubmissions" class="error">{{ error.projectSubmissions }}</div>
-      <div v-else-if="projectSubmissions.length === 0" class="no-data">
-        No project submissions found.
-      </div>
-      <div v-else class="submissions-list">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Project Link</th>
-              <th>Submitted At</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="sub in projectSubmissions" :key="sub.id">
-              <td>{{ sub.name }}</td>
-              <td>
-                <a :href="sub.project_link" target="_blank" rel="noopener noreferrer">
-                  {{ sub.project_link }}
-                </a>
-              </td>
-              <td>{{ formatDate(sub.submitted_at) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <AdminProjectSubmissions
+        :items="projectSubmissions"
+        :loading="loading.projectSubmissions"
+        :error="error.projectSubmissions"
+      />
     </div>
 
   </div>
 </template>
 
 <script>
+import { apiGet, apiPost, apiPut, apiDelete, withAuthHeaders } from '../services/apiClient'
+import { formatDate as formatDateUtil } from '../utils/date'
+import AdminProjectSubmissions from './admin/AdminProjectSubmissions.vue'
+import AdminWeeksTable from './admin/AdminWeeksTable.vue'
+import AdminSubmissionsTable from './admin/AdminSubmissionsTable.vue'
+
 export default {
   name: 'AdminDashboard',
+  components: { AdminProjectSubmissions, AdminWeeksTable, AdminSubmissionsTable },
   data() {
     return {
       activeTab: 'weeks',
       weeks: [],
-      classes: [],
+      categories: [],
       submissions: [],
       projectSubmissions: [],
       filters: {
-        class_id: '',
+        category_id: '',
         week_id: '',
         status: ''
       },
       loading: {
         weeks: false,
-        classes: false,
+        categories: false,
         submissions: false,
         updateWeek: false,
         addWeek: false,
@@ -395,7 +328,7 @@ export default {
       },
       error: {
         weeks: null,
-        classes: null,
+        categories: null,
         submissions: null,
         projectSubmissions: null
       },
@@ -407,7 +340,7 @@ export default {
       editingSubmission: null,
       deletingSubmission: null,
       newWeek: {
-        class_id: '',
+        category_id: '',
         week_number: 1,
         title: '',
         display_name: '',
@@ -425,7 +358,7 @@ export default {
     }
   },
   mounted() {
-    this.fetchClasses()
+    this.fetchCategories()
     this.fetchWeeks()
     this.fetchSubmissions()
   },
@@ -435,7 +368,7 @@ export default {
       const token = localStorage.getItem('auth_token')
       return {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        ...withAuthHeaders(token)
       }
     },
     logout() {
@@ -445,26 +378,18 @@ export default {
     },
     
     // Data fetching
-    async fetchClasses() {
-      this.loading.classes = true
-      this.error.classes = null
+    async fetchCategories() {
+      this.loading.categories = true
+      this.error.categories = null
       
       try {
-        const response = await fetch('http://localhost:5000/api/classes', {
-          headers: this.getAuthHeaders()
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch classes')
-        }
-        
-        const data = await response.json()
-        this.classes = data
+        const data = await apiGet('/api/categories', { headers: this.getAuthHeaders() })
+        this.categories = data
       } catch (err) {
-        this.error.classes = err.message
-        console.error('Error fetching classes:', err)
+        this.error.categories = err.message
+        console.error('Error fetching categories:', err)
       } finally {
-        this.loading.classes = false
+        this.loading.categories = false
       }
     },
     
@@ -473,15 +398,7 @@ export default {
       this.error.weeks = null
       
       try {
-        const response = await fetch('http://localhost:5000/api/admin/weeks', {
-          headers: this.getAuthHeaders()
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch weeks')
-        }
-        
-        const data = await response.json()
+        const data = await apiGet('/api/admin/weeks', { headers: this.getAuthHeaders() })
         this.weeks = data.weeks
       } catch (err) {
         this.error.weeks = err.message
@@ -495,14 +412,7 @@ export default {
       this.loading.projectSubmissions = true;
       this.error.projectSubmissions = null;
       try {
-        const response = await fetch('/api/project-submissions', {
-          headers: this.getAuthHeaders(),
-        });
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch project submissions');
-        }
-        this.projectSubmissions = await response.json();
+        this.projectSubmissions = await apiGet('/api/project-submissions', { headers: this.getAuthHeaders() })
       } catch (err) {
         this.error.projectSubmissions = err.message;
         console.error('Error fetching project submissions:', err);
@@ -518,21 +428,15 @@ export default {
       try {
         // Build query string from filters
         const queryParams = new URLSearchParams()
-        if (this.filters.class_id) queryParams.append('class_id', this.filters.class_id)
+        if (this.filters.category_id) queryParams.append('category_id', this.filters.category_id)
         if (this.filters.week_id) queryParams.append('week_id', this.filters.week_id)
         if (this.filters.status) queryParams.append('status', this.filters.status)
         
-        const url = `http://localhost:5000/api/admin/submissions?${queryParams.toString()}`
-        
-        const response = await fetch(url, {
-          headers: this.getAuthHeaders()
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch submissions')
+        // Legacy compatibility: also include class_id for older backends
+        if (this.filters.category_id && !queryParams.has('class_id')) {
+          queryParams.append('class_id', this.filters.category_id)
         }
-        
-        const data = await response.json()
+        const data = await apiGet(`/api/admin/submissions?${queryParams.toString()}`, { headers: this.getAuthHeaders() })
         this.submissions = data.submissions
       } catch (err) {
         this.error.submissions = err.message
@@ -543,9 +447,7 @@ export default {
     },
     
     formatDate(isoString) {
-      if (!isoString) return 'N/A';
-      const date = new Date(isoString);
-      return date.toLocaleString();
+      return formatDateUtil(isoString)
     },
 
     // Week management
@@ -581,16 +483,7 @@ export default {
         delete weekData.due_date_local
         delete weekData.class_name
         
-        const response = await fetch(`http://localhost:5000/api/admin/weeks/${this.editingWeek.id}`, {
-          method: 'PUT',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(weekData)
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to update week')
-        }
+        await apiPut(`/api/admin/weeks/${this.editingWeek.id}`, weekData, { headers: this.getAuthHeaders() })
         
         // Refresh weeks list
         await this.fetchWeeks()
@@ -619,15 +512,15 @@ export default {
         // Remove fields that shouldn't be sent
         delete weekData.due_date_local
         
-        const response = await fetch(`http://localhost:5000/api/admin/classes/${this.newWeek.class_id}/weeks`, {
-          method: 'POST',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(weekData)
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to add week')
+        try {
+          await apiPost(`/api/admin/categories/${this.newWeek.category_id}/weeks`, weekData, { headers: this.getAuthHeaders() })
+        } catch (e) {
+          // Fallback to legacy route if categories endpoint not found
+          if (e && e.message && e.message.toLowerCase().includes('404')) {
+            await apiPost(`/api/admin/classes/${this.newWeek.category_id}/weeks`, weekData, { headers: this.getAuthHeaders() })
+          } else {
+            throw e
+          }
         }
         
         // Refresh weeks list
@@ -635,7 +528,7 @@ export default {
         
         // Reset form and close modal
         this.newWeek = {
-          class_id: '',
+          category_id: '',
           week_number: 1,
           title: '',
           display_name: '',
@@ -667,16 +560,7 @@ export default {
           admin_comment: this.editingSubmission.admin_comment
         }
         
-        const response = await fetch(`http://localhost:5000/api/admin/submissions/${this.editingSubmission.id}`, {
-          method: 'PUT',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(submissionData)
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to update submission')
-        }
+        await apiPut(`/api/admin/submissions/${this.editingSubmission.id}`, submissionData, { headers: this.getAuthHeaders() })
         
         // Refresh submissions list
         await this.fetchSubmissions()
@@ -698,15 +582,7 @@ export default {
       this.loading.deleteSubmission = true
       
       try {
-        const response = await fetch(`http://localhost:5000/api/admin/submissions/${this.deletingSubmission.id}`, {
-          method: 'DELETE',
-          headers: this.getAuthHeaders()
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to delete submission')
-        }
+        await apiDelete(`/api/admin/submissions/${this.deletingSubmission.id}`, { headers: this.getAuthHeaders() })
         
         // Refresh submissions list
         await this.fetchSubmissions()

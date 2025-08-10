@@ -136,29 +136,29 @@ You need to run both the backend and frontend servers simultaneously in two sepa
 
 ### Available Endpoints
 
-- `GET /api/classes` - List all available classes
-- `GET /api/classes/{id}` - Get details for a specific class
-- `GET /api/classes/{id}/weeks` - List all weeks for a class
-- `GET /api/classes/{id}/weeks/{week}` - Get a specific week's assignment
-- `POST /api/classes/{id}/weeks/{week}/submissions` - Submit a project link
-- `GET /api/students` - List all students (with optional class_id filter)
+- `GET /api/categories` - List all available categories
+- `GET /api/categories/{id}` - Get details for a specific category
+- `GET /api/categories/{id}/weeks` - List all weeks for a category
+- `GET /api/categories/{id}/weeks/{week}` - Get a specific week's assignment
+- `POST /api/categories/{id}/weeks/{week}/submissions` - Submit or update a project link for a week
+- `GET /api/students` - List all students
 - `GET /api/students/{id}/submissions` - Get all submissions for a student
 
-See the comments in `api.py` for detailed request/response examples for each endpoint.
+Admin-only endpoints are available under `/api/admin` (weeks and submissions management). See the comments in `server/api.py` and `server/admin.py` for detailed request/response examples for each endpoint.
 
 ## Database Schema
 
 The application uses SQLite with the following tables:
 
-- **classes**: Stores information about each class
+- **categories**: Stores information about each category (e.g., Scratch, Canva)
   - id (PK)
   - name
   - description
   - created_at
 
-- **weeks**: Stores weekly assignments for each class
+- **weeks**: Stores weekly assignments for each category
   - id (PK)
-  - class_id (FK to classes.id)
+  - category_id (FK to categories.id)
   - week_number
   - title
   - description
