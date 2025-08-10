@@ -30,36 +30,7 @@
       
       <div v-if="loading.weeks" class="loading">Loading weeks...</div>
       <div v-else-if="error.weeks" class="error">{{ error.weeks }}</div>
-      <div v-else class="weeks-list">
-        <table>
-          <thead>
-            <tr>
-              <th>Week #</th>
-              <th>Class</th>
-              <th>Title</th>
-              <th>Display Name</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="week in weeks" :key="week.id">
-              <td>{{ week.week_number }}</td>
-              <td>{{ week.class_name }}</td>
-              <td>{{ week.title }}</td>
-              <td>{{ week.display_name }}</td>
-              <td>
-                <span :class="['status', week.is_active ? 'active' : 'inactive']">
-                  {{ week.is_active ? 'Active' : 'Inactive' }}
-                </span>
-              </td>
-              <td>
-                <button class="edit-btn" @click="editWeek(week)">Edit</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <WeeksTable v-else :weeks="weeks" @edit="editWeek" />
       
       <!-- Edit Week Modal -->
       <div v-if="showEditWeekForm" class="modal">
@@ -208,41 +179,7 @@
       <div v-else-if="submissions.length === 0" class="no-data">
         No submissions found with the current filters.
       </div>
-      <div v-else class="submissions-list">
-        <table>
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>Week</th>
-              <th>Project URL</th>
-              <th>Status</th>
-              <th>Submitted</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="sub in submissions" :key="sub.id">
-              <td>{{ sub.student_name }}</td>
-              <td>Week {{ sub.week_number }}: {{ sub.week_title }}</td>
-              <td>
-                <a :href="sub.project_url" target="_blank" rel="noopener noreferrer">
-                  {{ sub.project_url.substring(0, 30) }}...
-                </a>
-              </td>
-              <td>
-                <span :class="['status', sub.status]">
-                  {{ sub.status.charAt(0).toUpperCase() + sub.status.slice(1) }}
-                </span>
-              </td>
-              <td>{{ formatDate(sub.submitted_at) }}</td>
-              <td>
-                <button class="edit-btn" @click="editSubmission(sub)">Review</button>
-                <button class="delete-btn" @click="confirmDeleteSubmission(sub)">Delete</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <SubmissionsTable v-else :submissions="submissions" @review="editSubmission" @delete="confirmDeleteSubmission" />
       
       <!-- Edit Submission Modal -->
       <div v-if="showEditSubmissionForm" class="modal">
@@ -330,8 +267,15 @@
 </template>
 
 <script>
+import { api } from '../api'
+import { useAuth } from '../composables/useAuth'
+import WeeksTable from './admin/WeeksTable.vue'
+import SubmissionsTable from './admin/SubmissionsTable.vue'
+
 export default {
   name: 'AdminDashboard',
+  components: { WeeksTable, SubmissionsTable },
+  
   data() {
     return {
       activeTab: 'weeks',
@@ -382,16 +326,9 @@ export default {
   },
   methods: {
     // Authentication
-    getAuthHeaders() {
-      const token = localStorage.getItem('auth_token')
-      return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    },
     logout() {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('user')
+      const { logout } = useAuth()
+      logout()
       this.$emit('logout')
     },
     
@@ -399,21 +336,12 @@ export default {
     async fetchClasses() {
       this.loading.classes = true
       this.error.classes = null
-      
       try {
-        const response = await fetch('http://localhost:5000/api/classes', {
-          headers: this.getAuthHeaders()
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch classes')
-        }
-        
-        const data = await response.json()
+        const data = await api.getCategories()
         this.classes = data
       } catch (err) {
         this.error.classes = err.message
-        console.error('Error fetching classes:', err)
+        console.error('Error fetching categories:', err)
       } finally {
         this.loading.classes = false
       }
@@ -422,17 +350,8 @@ export default {
     async fetchWeeks() {
       this.loading.weeks = true
       this.error.weeks = null
-      
       try {
-        const response = await fetch('http://localhost:5000/api/admin/weeks', {
-          headers: this.getAuthHeaders()
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch weeks')
-        }
-        
-        const data = await response.json()
+        const data = await api.getAdminWeeks()
         this.weeks = data.weeks
       } catch (err) {
         this.error.weeks = err.message
@@ -445,25 +364,13 @@ export default {
     async fetchSubmissions() {
       this.loading.submissions = true
       this.error.submissions = null
-      
       try {
-        // Build query string from filters
-        const queryParams = new URLSearchParams()
-        if (this.filters.class_id) queryParams.append('class_id', this.filters.class_id)
-        if (this.filters.week_id) queryParams.append('week_id', this.filters.week_id)
-        if (this.filters.status) queryParams.append('status', this.filters.status)
-        
-        const url = `http://localhost:5000/api/admin/submissions?${queryParams.toString()}`
-        
-        const response = await fetch(url, {
-          headers: this.getAuthHeaders()
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch submissions')
+        const params = {
+          ...(this.filters.class_id ? { class_id: this.filters.class_id } : {}),
+          ...(this.filters.week_id ? { week_id: this.filters.week_id } : {}),
+          ...(this.filters.status ? { status: this.filters.status } : {}),
         }
-        
-        const data = await response.json()
+        const data = await api.getAdminSubmissions(params)
         this.submissions = data.submissions
       } catch (err) {
         this.error.submissions = err.message
@@ -497,33 +404,14 @@ export default {
     
     async updateWeek() {
       this.loading.updateWeek = true
-      
       try {
-        // Convert local date back to ISO format
-        const weekData = {
-          ...this.editingWeek
-        }
-        
+        const weekData = { ...this.editingWeek }
         if (weekData.due_date_local) {
           weekData.due_date = new Date(weekData.due_date_local).toISOString()
         }
-        
-        // Remove fields that shouldn't be sent
         delete weekData.due_date_local
         delete weekData.class_name
-        
-        const response = await fetch(`http://localhost:5000/api/admin/weeks/${this.editingWeek.id}`, {
-          method: 'PUT',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(weekData)
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to update week')
-        }
-        
-        // Refresh weeks list
+        await api.updateWeek(this.editingWeek.id, weekData)
         await this.fetchWeeks()
         this.showEditWeekForm = false
       } catch (err) {
@@ -536,35 +424,14 @@ export default {
     
     async addWeek() {
       this.loading.addWeek = true
-      
       try {
-        // Convert local date to ISO format
-        const weekData = {
-          ...this.newWeek
-        }
-        
+        const weekData = { ...this.newWeek }
         if (weekData.due_date_local) {
           weekData.due_date = new Date(weekData.due_date_local).toISOString()
         }
-        
-        // Remove fields that shouldn't be sent
         delete weekData.due_date_local
-        
-        const response = await fetch(`http://localhost:5000/api/admin/classes/${this.newWeek.class_id}/weeks`, {
-          method: 'POST',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(weekData)
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to add week')
-        }
-        
-        // Refresh weeks list
+        await api.createWeek(this.newWeek.class_id, weekData)
         await this.fetchWeeks()
-        
-        // Reset form and close modal
         this.newWeek = {
           class_id: '',
           week_number: 1,
@@ -591,25 +458,12 @@ export default {
     
     async updateSubmission() {
       this.loading.updateSubmission = true
-      
       try {
         const submissionData = {
           status: this.editingSubmission.status,
-          admin_comment: this.editingSubmission.admin_comment
+          admin_comment: this.editingSubmission.admin_comment,
         }
-        
-        const response = await fetch(`http://localhost:5000/api/admin/submissions/${this.editingSubmission.id}`, {
-          method: 'PUT',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify(submissionData)
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to update submission')
-        }
-        
-        // Refresh submissions list
+        await api.updateSubmission(this.editingSubmission.id, submissionData)
         await this.fetchSubmissions()
         this.showEditSubmissionForm = false
       } catch (err) {
@@ -627,19 +481,8 @@ export default {
     
     async deleteSubmission() {
       this.loading.deleteSubmission = true
-      
       try {
-        const response = await fetch(`http://localhost:5000/api/admin/submissions/${this.deletingSubmission.id}`, {
-          method: 'DELETE',
-          headers: this.getAuthHeaders()
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to delete submission')
-        }
-        
-        // Refresh submissions list
+        await api.deleteSubmission(this.deletingSubmission.id)
         await this.fetchSubmissions()
         this.showDeleteConfirmation = false
       } catch (err) {

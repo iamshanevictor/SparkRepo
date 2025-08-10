@@ -1,5 +1,11 @@
 # Environment variables
 .env
+.env.*.local
+server/.env
+client/.env
+# keep examples tracked
+!server/.env.example
+!client/.env.example
 
 # Python
 __pycache__/
@@ -8,14 +14,27 @@ __pycache__/
 *.pyd
 .Python
 .venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
 # Database
 /server/instance/
 /server/scratchlinkhub.db
+**/*.sqlite3
+**/*.db
 
 # Node
 /client/node_modules/
 /client/dist/
+.eslintcache
+/client/.vite/
+/client/.turbo/
+/client/.parcel-cache/
+/client/coverage/
+/client/build/
 .npm
 npm-debug.log*
 yarn-debug.log*
@@ -23,3 +42,10 @@ yarn-error.log*
 
 # VSCode
 .vscode/
+
+# JetBrains
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db

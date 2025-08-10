@@ -1,3 +1,8 @@
+"""Flask application factory for SparkRepo backend.
+
+Initializes extensions, loads configuration, registers blueprints, and
+exposes basic health and API discovery endpoints.
+"""
 from flask import Flask, jsonify
 from flask_cors import CORS
 from models import db
@@ -6,22 +11,32 @@ from auth import auth, init_jwt
 from admin import admin_api
 import os
 import secrets
+from dotenv import load_dotenv
+from config import get_config
 
 def create_app(test_config=None):
     """Create and configure the Flask application."""
+    # Load environment variables from .env (if present)
+    load_dotenv()
+
     app = Flask(__name__)
 
-    # Configure the SQLite database using an absolute path
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'sparkrepo.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
-    # Configure JWT
-    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', secrets.token_hex(32))
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 86400  # 24 hours in seconds
-    
-    # Enable CORS for the Vue.js frontend
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    # Load config class
+    ConfigClass = get_config()
+    app.config.from_object(ConfigClass)
+
+    # Configure the SQLite database fallback using an absolute path if none provided
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'sparkrepo.db')
+
+    # Configure JWT (use provided secret or fall back to a generated one for dev)
+    app.config['JWT_SECRET_KEY'] = app.config.get('JWT_SECRET_KEY') or os.environ.get('JWT_SECRET_KEY') or secrets.token_hex(32)
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = int(os.environ.get('JWT_ACCESS_TOKEN_EXPIRES', app.config.get('JWT_ACCESS_TOKEN_EXPIRES', 86400)))
+
+    # Enable CORS for the Vue.js frontend (restrict to configured origins)
+    cors_origins = app.config.get('CORS_ORIGINS', 'http://localhost:5173')
+    CORS(app, resources={r"/*": {"origins": cors_origins}})
     
     # Initialize the database
     db.init_app(app)
@@ -37,18 +52,31 @@ def create_app(test_config=None):
     # Create a route for the API root
     @app.route('/api', methods=['GET'])
     def api_root():
+        """Simple discovery endpoint listing primary routes."""
         return jsonify({
-                        'message': 'Welcome to the SparkRepo API',
+            'message': 'Welcome to the SparkRepo API',
             'version': '1.0.0',
-            'endpoints': [
-                '/api/classes',
-                '/api/classes/{id}',
-                '/api/classes/{id}/weeks',
-                '/api/classes/{id}/weeks/{week}',
-                '/api/classes/{id}/weeks/{week}/submissions',
-                '/api/students',
-                '/api/students/{id}/submissions'
-            ]
+            'endpoints': {
+                'public': [
+                    '/api/categories',
+                    '/api/categories/{id}',
+                    '/api/categories/{id}/weeks',
+                    '/api/categories/{id}/weeks/{week}',
+                    '/api/categories/{id}/weeks/{week}/submissions'
+                ],
+                'auth': [
+                    '/api/auth/login',
+                    '/api/auth/me',
+                    '/api/auth/users'
+                ],
+                'admin': [
+                    '/api/admin/weeks',
+                    '/api/admin/weeks/{id}',
+                    '/api/admin/categories/{category_id}/weeks',
+                    '/api/admin/submissions',
+                    '/api/admin/submissions/{id}'
+                ]
+            }
         })
     
     # Create a simple health check endpoint

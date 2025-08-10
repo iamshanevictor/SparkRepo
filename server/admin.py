@@ -1,8 +1,14 @@
+"""Admin API routes for SparkRepo.
+
+Endpoints in this module require JWT auth and admin privileges.
+"""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Week, Submission, Category, User
 from auth import admin_required
 from datetime import datetime
+from utils.validators import parse_iso8601
+from utils.errors import json_error
 
 admin_api = Blueprint('admin_api', __name__)
 
@@ -83,7 +89,7 @@ def update_week(week_id):
     data = request.get_json()
     
     if not data:
-        return jsonify({"error": "No data provided"}), 400
+        return json_error("No data provided", 400)
     
     # Update fields if provided
     if 'title' in data:
@@ -96,9 +102,9 @@ def update_week(week_id):
         week.assignment_url = data['assignment_url']
     if 'due_date' in data and data['due_date']:
         try:
-            week.due_date = datetime.fromisoformat(data['due_date'].replace('Z', '+00:00'))
+            week.due_date = parse_iso8601(data['due_date'])
         except ValueError:
-            return jsonify({"error": "Invalid date format"}), 400
+            return json_error("Invalid date format", 400)
     if 'is_active' in data:
         week.is_active = data['is_active']
     
@@ -149,7 +155,7 @@ def create_week(category_id):
     data = request.get_json()
     
     if not data or 'week_number' not in data or 'title' not in data:
-        return jsonify({"error": "Missing required fields"}), 400
+        return json_error("Missing required fields", 400)
     
     # Check if week number already exists for this category
     existing_week = Week.query.filter_by(
@@ -158,7 +164,7 @@ def create_week(category_id):
     ).first()
     
     if existing_week:
-        return jsonify({"error": "Week number already exists for this category"}), 400
+        return json_error("Week number already exists for this category", 400)
     
     # Create new week
     new_week = Week(
@@ -174,9 +180,9 @@ def create_week(category_id):
     # Set due date if provided
     if 'due_date' in data and data['due_date']:
         try:
-            new_week.due_date = datetime.fromisoformat(data['due_date'].replace('Z', '+00:00'))
+            new_week.due_date = parse_iso8601(data['due_date'])
         except ValueError:
-            return jsonify({"error": "Invalid date format"}), 400
+            return json_error("Invalid date format", 400)
     
     db.session.add(new_week)
     db.session.commit()
@@ -281,7 +287,7 @@ def update_submission(submission_id):
     data = request.get_json()
     
     if not data:
-        return jsonify({"error": "No data provided"}), 400
+        return json_error("No data provided", 400)
     
     # Get current admin user
     current_user_id = get_jwt_identity()

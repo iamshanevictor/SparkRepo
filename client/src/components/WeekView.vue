@@ -31,11 +31,11 @@
       </div>
     </div>
     
-    <component 
-      :is="submissionFormComponent" 
-      v-if="showSubmissionForm" 
-      :category-id="categoryId" 
+    <UploadForm
+      v-if="showSubmissionForm"
+      :category-id="categoryId"
       :week-number="weekNumber"
+      :category-info="categoryInfo"
       @close="showSubmissionForm = false"
       @submission-complete="handleSubmissionComplete"
     />
@@ -44,14 +44,12 @@
 
 <script>
 import { api } from '../api';
-import ScratchUploadForm from './ScratchUploadForm.vue';
-import CanvaUploadForm from './CanvaUploadForm.vue';
+import UploadForm from './UploadForm.vue';
 
 export default {
   name: 'WeekView',
   components: {
-    ScratchUploadForm,
-    CanvaUploadForm
+    UploadForm,
   },
   props: {
     categoryId: {
@@ -75,15 +73,7 @@ export default {
       showSubmissionForm: false,
     }
   },
-  computed: {
-    submissionFormComponent() {
-      const categoryName = this.categoryInfo.name ? this.categoryInfo.name.toLowerCase() : '';
-      if (categoryName.includes('canva')) {
-        return 'CanvaUploadForm';
-      }
-      return 'ScratchUploadForm';
-    }
-  },
+  computed: {},
   watch: {
     weekNumber: {
       immediate: true,

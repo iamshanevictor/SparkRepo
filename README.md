@@ -31,9 +31,26 @@ git clone <repository-url>
 cd SparkRepo
 ```
 
-### 2. Run the Application
+### 2. Configure Environment
 
-You need to run both the backend and frontend servers simultaneously in two separate terminals. No manual configuration is needed.
+- Copy example env files and adjust if needed (examples are safe to commit; real envs are ignored by Git):
+  - Backend: copy `server/.env.example` to `server/.env` and set values (JWT secret, CORS origins, DB path if overriding)
+  - Frontend: copy `client/.env.example` to `client/.env` and set `VITE_API_URL` (default `http://localhost:5000/api`)
+
+### 3. Seed an Admin User (local)
+
+Run this once to ensure you can log into the admin dashboard:
+
+```powershell
+cd server
+python -m scripts.seed_admin
+```
+
+This will create or update the `admin` user with password `admin`.
+
+### 4. Run the Application
+
+Run the backend and frontend in two terminals.
 
 **Terminal 1: Run the Backend (Flask)**
 
@@ -73,19 +90,18 @@ You need to run both the backend and frontend servers simultaneously in two sepa
     -   Checks for a `node_modules` directory and runs `npm install` if it doesn't exist.
     -   Starts the Vite development server with Hot-Module-Reloading (HMR) enabled.
 
-## API Documentation
+## API Documentation (high level)
 
 ### Available Endpoints
 
 - `GET /api/categories` - List all available categories.
-- `GET /api/categories/{id}` - Get details for a specific category.
 - `GET /api/categories/{id}/weeks` - List all weeks for a category.
 - `GET /api/categories/{id}/weeks/{week_number}` - Get a specific week's assignment.
-- `POST /api/submissions` - Submit a project link for a specific week.
-- `GET /api/submissions` - Get all submissions, with optional filters for `week_id` or `category_id`.
+- `POST /api/categories/{id}/weeks/{week_number}/submissions` - Submit a project link for a specific week.
 - `GET /api/admin/weeks` - Get all weeks for the admin dashboard.
-- `POST /api/admin/weeks` - Add a new week.
+- `POST /api/admin/categories/{category_id}/weeks` - Add a new week to a category.
 - `PUT /api/admin/weeks/{id}` - Update an existing week.
+- `GET /api/admin/submissions` - Admin submissions with optional filters (`class_id`, `week_id`, `status`).
 
 See `server/api.py` and `server/admin.py` for more details.
 
@@ -125,6 +141,15 @@ The application uses SQLite with the following tables:
   - `email`
   - `password_hash`
   - `is_admin`
+
+## Security & Git Hygiene
+
+- Do not commit real secrets. Real env files (`server/.env`, `client/.env`) are ignored by `.gitignore`.
+- SQLite DBs are also ignored; if one was previously tracked (e.g. `server/sparkrepo.db`), remove it from Git with:
+  ```powershell
+  git rm --cached server/sparkrepo.db
+  ```
+- Examples (`*.env.example`) remain tracked and safe to share.
 
 ## License
 

@@ -1,14 +1,20 @@
+"""Public API routes for SparkRepo.
+
+Provides category, week, and submission endpoints used by the student UI.
+"""
 from flask import Flask, request, jsonify, Blueprint
 from models import db, Category, Week, Submission
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
+from utils.errors import json_error, handle_exception
+from utils.validators import validate_required_fields
 
 # Create a Blueprint for API routes
 api = Blueprint('api', __name__)
 
-# Error handling
-def handle_error(e, status_code=400):
-    return jsonify({'error': str(e)}), status_code
+def _get_week_or_404(category_id: int, week_number: int) -> Week:
+    Category.query.get_or_404(category_id)
+    return Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
 
 # GET /categories - List all categories
 @api.route('/categories', methods=['GET'])
@@ -20,7 +26,7 @@ def get_categories():
         categories = Category.query.all()
         return jsonify([category.to_dict() for category in categories])
     except Exception as e:
-        return handle_error(e, 500)
+        return handle_exception(e, 500)
 
 # GET /categories/{id} - Get a specific category
 @api.route('/categories/<int:category_id>', methods=['GET'])
@@ -32,7 +38,7 @@ def get_category(category_id):
         category = Category.query.get_or_404(category_id)
         return jsonify(category.to_dict())
     except Exception as e:
-        return handle_error(e, 500)
+        return handle_exception(e, 500)
 
 # GET /categories/{id}/weeks - List all weeks for a category
 @api.route('/categories/<int:category_id>/weeks', methods=['GET'])
@@ -45,7 +51,7 @@ def get_category_weeks(category_id):
         weeks = Week.query.filter_by(category_id=category_id).order_by(Week.week_number).all()
         return jsonify([week.to_dict() for week in weeks])
     except Exception as e:
-        return handle_error(e, 500)
+        return handle_exception(e, 500)
 
 # GET /categories/{id}/weeks/{week} - Get a specific week's assignment
 @api.route('/categories/<int:category_id>/weeks/<int:week_number>', methods=['GET'])
@@ -74,8 +80,7 @@ def get_week_assignment(category_id, week_number):
     }
     """
     try:
-        Category.query.get_or_404(category_id)  # Check if category exists
-        week = Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
+        week = _get_week_or_404(category_id, week_number)
         
         # Get the week data
         week_data = week.to_dict()
@@ -88,7 +93,7 @@ def get_week_assignment(category_id, week_number):
         
         return jsonify(week_data)
     except Exception as e:
-        return handle_error(e, 500)
+        return handle_exception(e, 500)
 
 # POST /categories/{id}/weeks/{week}/submissions - Submit a project link
 @api.route('/categories/<int:category_id>/weeks/<int:week_number>/submissions', methods=['POST'])
@@ -98,16 +103,17 @@ def submit_project(category_id, week_number):
     """
     data = request.get_json()
     if not data:
-        return handle_error("No data provided", 400)
+        return json_error("No data provided", 400)
 
     # Validate required fields
     required_fields = ['student_name', 'project_url']
-    if not all(field in data and data[field] for field in required_fields):
-        return handle_error("Missing required fields: student_name, project_url", 400)
+    ok, missing = validate_required_fields(data, required_fields)
+    if not ok:
+        return json_error(f"Missing required fields: {', '.join(missing)}", 400)
 
     try:
         # Find the week for the submission
-        week = Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
+        week = _get_week_or_404(category_id, week_number)
 
         # Create a new submission
         submission = Submission(
@@ -124,62 +130,8 @@ def submit_project(category_id, week_number):
 
     except IntegrityError as e:
         db.session.rollback()
-        return handle_error(f"Database integrity error: {e}", 400)
+        return json_error(f"Database integrity error: {e}", 400)
     except Exception as e:
         db.session.rollback()
-        return handle_error(str(e), 500)
+        return handle_exception(e, 500)
 
-
-# --- Project Submission Routes ---
-
-# GET /project-submissions - List all project submissions
-@api.route('/project-submissions', methods=['GET'])
-def get_project_submissions():
-    """
-    Returns a list of all project submissions, ordered by most recent.
-    """
-    try:
-        submissions = ProjectSubmission.query.order_by(ProjectSubmission.submitted_at.desc()).all()
-        return jsonify([s.to_dict() for s in submissions])
-    except Exception as e:
-        return handle_error(e, 500)
-
-# POST /project-submissions - Submit a new project
-@api.route('/project-submissions', methods=['POST'])
-def submit_new_project():
-    """
-    Submits a new project with a name and a link.
-    
-    Example request:
-    {
-        "name": "Jane Doe",
-        "project_link": "https://github.com/janedoe/my-awesome-project"
-    }
-    """
-    try:
-        data = request.get_json()
-        if not data:
-            return handle_error("No data provided", 400)
-        
-        name = data.get('name')
-        project_link = data.get('project_link')
-        
-        if not name or not project_link:
-            return handle_error("Missing 'name' or 'project_link'", 400)
-        
-        new_submission = ProjectSubmission(
-            name=name,
-            project_link=project_link
-        )
-        
-        db.session.add(new_submission)
-        db.session.commit()
-        
-        return jsonify(new_submission.to_dict()), 201
-        
-    except IntegrityError as e:
-        db.session.rollback()
-        return handle_error(f"Database integrity error: {e}", 400)
-    except Exception as e:
-        db.session.rollback()
-        return handle_error(str(e), 500)
