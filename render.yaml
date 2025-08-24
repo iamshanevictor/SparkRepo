@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: sparkrepo-backend
+    env: python
+    build:
+      buildCommand: pip install -r server/requirements.txt
+      startCommand: gunicorn --worker-tmp-dir /dev/shm --workers=2 --threads=4 --worker-class=gthread --timeout 120 --bind :$PORT "server.app:create_app()"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: FLASK_APP
+        value: app.py
+      - key: FLASK_ENV
+        value: production
+      # Add other environment variables from your .env file here
+
+  - type: web
+    name: sparkrepo-frontend
+    env: node
+    build:
+      buildCommand: cd client && npm install && npm run build
+      staticPath: client/dist
+      nodeVersion: 18.x
+    envVars:
+      - key: VITE_API_URL
+        value: https://sparkrepo-backend.onrender.com  # Update with your backend URL
+
+# Uncomment and configure the database if needed
+# databases:
+#   - name: sparkrepo-db
+#     databaseName: sparkrepo
+#     user: sparkrepo_user
+#     plan: free
