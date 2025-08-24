@@ -61,7 +61,6 @@ services:
     buildCommand: |
       cd client && \
       npm install && \
-      echo "VITE_API_URL during build: $VITE_API_URL" && \
       VITE_API_URL=$VITE_API_URL npm run build
     staticPublishPath: ./client/dist
     envVars:
