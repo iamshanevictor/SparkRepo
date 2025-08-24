@@ -7,15 +7,14 @@ services:
     name: sparkrepo-backend
     env: python
     region: oregon  # Choose a region closest to your users
-    pythonVersion: 3.11.9
     buildCommand: |
-      /usr/local/bin/python3.11 -m venv .venv
+      python -m venv .venv
       source .venv/bin/activate
-      /usr/local/bin/python3.11 -m pip install --upgrade pip
-      /usr/local/bin/python3.11 -m pip install -r requirements.txt
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
     startCommand: |
       source .venv/bin/activate
-      .venv/bin/gunicorn \
+      gunicorn \
           --worker-tmp-dir /dev/shm \
           --workers=2 \
           --threads=4 \
