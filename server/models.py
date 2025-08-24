@@ -1,8 +1,20 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
+
+# Import all models here to ensure they are registered with SQLAlchemy
+# This is needed for Flask-Migrate to detect models
+from . import app  # This will be created in __init__.py
+
+def init_app(app):
+    """Initialize the SQLAlchemy instance with the Flask app."""
+    db.init_app(app)
+    with app.app_context():
+        # Create tables if they don't exist
+        db.create_all()
+    return app
 
 class Category(db.Model):
     """Category model representing a project type, e.g., Scratch or Canva."""
@@ -39,24 +51,50 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
     
+    # Relationships
+    modified_submissions = db.relationship('Submission', back_populates='admin', foreign_keys='Submission.modified_by')
+    
+    def __init__(self, **kwargs):
+        super(User, self).__init__(**kwargs)
+        if self.email and not self.username:
+            self.username = self.email.split('@')[0]
+    
     def __repr__(self):
         return f'<User {self.username}>'
     
     def set_password(self, password):
+        """Create hashed password."""
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
+        """Check hashed password."""
         return check_password_hash(self.password_hash, password)
     
     def to_dict(self):
+        """Convert user object to dictionary."""
         return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
             'is_admin': self.is_admin,
-            'created_at': self.created_at.isoformat(),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
+    
+    @classmethod
+    def get_by_username(cls, username):
+        """Get user by username."""
+        return cls.query.filter_by(username=username).first()
+    
+    @classmethod
+    def get_by_email(cls, email):
+        """Get user by email."""
+        return cls.query.filter_by(email=email).first()
+    
+    def update_last_login(self):
+        """Update the last login timestamp."""
+        self.last_login = datetime.utcnow()
+        db.session.commit()
 
 
 class Week(db.Model):

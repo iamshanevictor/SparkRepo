@@ -1,10 +1,16 @@
+# Render Blueprint for SparkRepo
+# Reference: https://render.com/docs/blueprint-spec
+
 services:
+  # Backend service (Python/Flask)
   - type: web
     name: sparkrepo-backend
     env: python
-    build:
-      buildCommand: pip install -r server/requirements.txt
-      startCommand: gunicorn --worker-tmp-dir /dev/shm --workers=2 --threads=4 --worker-class=gthread --timeout 120 --bind :$PORT "server.app:create_app()"
+    region: oregon  # Choose a region closest to your users
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: |
+      bash ./start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.0
@@ -12,22 +18,63 @@ services:
         value: app.py
       - key: FLASK_ENV
         value: production
-      # Add other environment variables from your .env file here
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@example.com  # Change this to your admin email
+      - key: ADMIN_PASSWORD
+        generateValue: true  # Will be auto-generated, change after first deploy
+      - key: CORS_ORIGINS
+        value: https://sparkrepo-frontend.onrender.com,http://localhost:5173
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sparkrepo-db
+          property: connectionString
+    plan: free  # Start with free, upgrade as needed
 
+  # Frontend service (Vue.js)
   - type: web
     name: sparkrepo-frontend
-    env: node
-    build:
-      buildCommand: cd client && npm install && npm run build
-      staticPath: client/dist
-      nodeVersion: 18.x
+    env: static
+    region: oregon  # Should match backend region
+    buildCommand: |
+      cd client && \
+      npm install && \
+      npm run build
+    staticPublishPath: ./client/dist
     envVars:
       - key: VITE_API_URL
-        value: https://sparkrepo-backend.onrender.com  # Update with your backend URL
+        fromService:
+          name: sparkrepo-backend
+          type: web
+          property: url
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    plan: free  # Start with free, upgrade as needed
 
-# Uncomment and configure the database if needed
-# databases:
-#   - name: sparkrepo-db
-#     databaseName: sparkrepo
-#     user: sparkrepo_user
-#     plan: free
+# Database configuration
+databases:
+  - name: sparkrepo-db
+    databaseName: sparkrepo
+    user: sparkrepo_user
+    region: oregon  # Should match services region
+    plan: free  # Start with free, upgrade to paid for production
+    # Database configuration
+    postgresqlSettings:
+      postgresqlSharedBuffers: 100MB
+      postgresqlWorkMem: 10MB
+      postgresqlMaintenanceWorkMem: 50MB
+      postgresqlEffectiveCacheSize: 200MB
+    # Database initialization
+    initScripts:
+      - scripts/init.sql  # Optional: Add this file for initial database setup
+    # Backups (only available on paid plans)
+    # backupRetentionInDays: 7
+    # backupStartMinute: 0
+    # backupStartHour: 2
+    # backupDayOfWeek: 0
+    # backupDayOfMonth: 1

@@ -1,26 +1,124 @@
 # SparkRepo
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
 SparkRepo is a full-stack web application designed to help manage student submissions for project-based learning, such as Scratch or Canva. It provides a simple interface for instructors to create assignment categories and weeks, and for students to submit their work directly without needing to log in.
 
-The project is built with a Vue.js frontend and a Flask (Python) backend.
+The project is built with a Vue.js frontend and a Flask (Python) backend, deployed to [Render.com](https://render.com).
+
+## Features
+
+- **Instructor Dashboard**: Create and manage assignment categories and weekly assignments
+- **Student Submissions**: Simple interface for students to submit their work
+- **No Login Required**: Students can submit without creating accounts
+- **Admin Panel**: Manage users, submissions, and settings
+- **Responsive Design**: Works on desktop and mobile devices
+
+## Tech Stack
+
+- **Frontend**: Vue.js 3, Vite, Vue Router, Pinia, Tailwind CSS
+- **Backend**: Python, Flask, SQLAlchemy, Flask-RESTful
+- **Database**: PostgreSQL (production), SQLite (development)
+- **Deployment**: Render.com
 
 ## Project Structure
 
-- `/client`: Contains the Vue.js frontend application.
-- `/server`: Contains the Flask backend API.
+```
+.
+├── client/                 # Vue.js frontend
+│   ├── public/            # Static files
+│   ├── src/               # Source files
+│   └── package.json       # Frontend dependencies
+├── server/                # Flask backend
+│   ├── app.py            # Application factory
+│   ├── models.py         # Database models
+│   ├── requirements.txt  # Python dependencies
+│   └── start.sh          # Startup script
+├── .env.example          # Example environment variables
+├── render.yaml           # Render.com configuration
+└── README.md            # This file
+```
 
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
 
-- [Python](https://www.python.org/downloads/) (3.8 or higher)
+- [Python](https://www.python.org/downloads/) (3.10 recommended)
 - [Node.js](https://nodejs.org/en/download/) (16.x or higher)
-- [pip](https://pip.pypa.io/en/stable/installation/) (Python package installer)
-- [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) (Node.js package manager)
+- [Git](https://git-scm.com/downloads)
+- [Render.com account](https://render.com/)
+- [GitHub account](https://github.com/) (recommended)
 
-## Getting Started
+## Deployment to Render.com
 
-Follow these steps to get your development environment set up and running.
+### 1. One-Click Deploy (Recommended)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+Click the button above to deploy to Render.com. You'll need to:
+
+1. Sign in or create a Render account
+2. Connect your GitHub/GitLab account
+3. Select the repository
+4. Configure environment variables (use `.env.example` as reference)
+5. Click "Create Web Service"
+
+### 2. Manual Deployment
+
+#### Backend Service
+
+1. **Create a new Web Service** on Render
+2. Connect your repository
+3. Configure the service:
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `bash start.sh`
+   - **Environment**: Python 3.10
+   - **Plan**: Free (upgrade for production)
+
+4. **Add Environment Variables**:
+   - `FLASK_APP=app.py`
+   - `FLASK_ENV=production`
+   - `SECRET_KEY` (generate a secure key)
+   - `JWT_SECRET_KEY` (generate a secure key)
+   - `DATABASE_URL` (will be provided by Render's PostgreSQL add-on)
+   - `ADMIN_EMAIL` (your email)
+   - `ADMIN_PASSWORD` (temporary password, change after first login)
+   - `CORS_ORIGINS` (your frontend URL, e.g., `https://your-frontend.onrender.com`)
+
+#### Frontend Service
+
+1. **Create a new Static Site** on Render
+2. Connect your repository
+3. Configure the build:
+   - **Build Command**: `cd client && npm install && npm run build`
+   - **Publish Directory**: `client/dist`
+   - **Environment Variables**:
+     - `VITE_API_URL`: Your backend URL (e.g., `https://your-backend.onrender.com`)
+
+#### Database
+
+1. **Create a new PostgreSQL** database on Render
+2. Copy the connection string
+3. Add it as `DATABASE_URL` in your backend service
+
+### 3. Post-Deployment
+
+1. **Verify Services**:
+   - Check backend health: `https://your-backend.onrender.com/health`
+   - Test frontend: Visit your frontend URL
+
+2. **Update Admin Password**:
+   - Log in with the temporary admin password
+   - Change it immediately in the admin panel
+
+3. **Set Up Custom Domain** (Optional):
+   - Go to your service settings
+   - Add your custom domain
+   - Configure DNS settings as instructed
+
+## Development Setup
+
+For local development, follow these steps:
 
 ### 1. Clone the Repository
 
