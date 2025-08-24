@@ -7,6 +7,8 @@ function authHeaders() {
 }
 
 async function request(path, options = {}) {
+  const requestUrl = `${API_BASE_URL}${path}`
+  console.log("Fetch Request URL:", requestUrl)
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
