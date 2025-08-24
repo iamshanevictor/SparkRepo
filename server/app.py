@@ -59,9 +59,10 @@ def create_app(test_config=None):
     app.register_blueprint(admin_api, url_prefix='/admin')
 
     # Enable CORS for the Vue.js frontend
+    cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
     CORS(app, resources={
         r"/*": {
-            "origins": app.config.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
+            "origins": cors_origins
         }
     })
 
