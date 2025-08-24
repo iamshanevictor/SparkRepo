@@ -14,9 +14,6 @@ class BaseConfig:
     JWT_ACCESS_TOKEN_EXPIRES = int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 86400))  # 24h
 
     # Database
-    DATABASE_URL = os.environ.get("DATABASE_URL")
-    if DATABASE_URL:
-        SQLALCHEMY_DATABASE_URI = DATABASE_URL
 
     # CORS
     CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173")

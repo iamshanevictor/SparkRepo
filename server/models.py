@@ -6,7 +6,6 @@ db = SQLAlchemy()
 
 # Import all models here to ensure they are registered with SQLAlchemy
 # This is needed for Flask-Migrate to detect models
-from . import app  # This will be created in __init__.py
 
 def init_app(app):
     """Initialize the SQLAlchemy instance with the Flask app."""
@@ -157,7 +156,7 @@ class Submission(db.Model):
     
     # Relationships
     week = db.relationship('Week', back_populates='submissions')
-    admin = db.relationship('User', foreign_keys=[modified_by], backref='modified_submissions')
+    admin = db.relationship('User', foreign_keys=[modified_by], back_populates='modified_submissions')
     
     def __repr__(self):
         return f'<Submission by {self.student_name} for Week {self.week.week_number}>'
