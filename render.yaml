@@ -8,13 +8,20 @@ services:
     env: python
     region: oregon  # Choose a region closest to your users
     buildCommand: |
+      python3.11 -m venv .venv
+      source .venv/bin/activate
       python -m pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: |
+      source .venv/bin/activate
       bash ./start.sh
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.9  # Using Python 3.11 for better SQLAlchemy compatibility
+        value: 3.11.9  # Force Python 3.11.9 for compatibility
+      - key: VIRTUAL_ENV
+        value: /opt/render/project/src/.venv
+      - key: PATH
+        value: /opt/render/project/src/.venv/bin:$PATH
       - key: FLASK_APP
         value: app.py
       - key: FLASK_ENV
