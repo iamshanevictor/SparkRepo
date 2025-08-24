@@ -8,12 +8,13 @@ services:
     env: python
     region: oregon  # Choose a region closest to your users
     buildCommand: |
+      python -m pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: |
       bash ./start.sh
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.0
+        value: 3.11.9  # Using Python 3.11 for better SQLAlchemy compatibility
       - key: FLASK_APP
         value: app.py
       - key: FLASK_ENV

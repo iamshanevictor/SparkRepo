@@ -1,12 +1,26 @@
+# Core Flask
 Flask==2.3.3
-Flask-SQLAlchemy==3.0.3
-Flask-CORS==4.0.0
-Flask-JWT-Extended==4.5.2
-SQLAlchemy==2.0.20
 Werkzeug==2.3.7
-python-dotenv==1.0.0
-PyJWT==2.8.0
-gunicorn==21.2.0
+
+# Database
+SQLAlchemy==2.0.20
+Flask-SQLAlchemy==3.1.1
 psycopg2-binary==2.9.9
-flask-migrate==4.0.5
-alembic==1.12.0
+alembic==1.12.1
+Flask-Migrate==4.0.5
+
+# Authentication & Security
+Flask-JWT-Extended==4.5.2
+PyJWT==2.8.0
+python-dotenv==1.0.0
+
+# CORS & HTTP
+Flask-CORS==4.0.0
+
+# Production
+# Note: gunicorn is only needed for production, not for development
+gunicorn==21.2.0
+
+# Development (optional, uncomment if needed)
+# pytest==7.4.0
+# python-dotenv==1.0.0
