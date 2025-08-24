@@ -9,13 +9,24 @@ services:
     region: oregon  # Choose a region closest to your users
     pythonVersion: 3.11.9
     buildCommand: |
-      python3.11 -m venv .venv
+      /usr/local/bin/python3.11 -m venv .venv
       source .venv/bin/activate
-      python -m pip install --upgrade pip
-      pip install -r requirements.txt
+      /usr/local/bin/python3.11 -m pip install --upgrade pip
+      /usr/local/bin/python3.11 -m pip install -r requirements.txt
     startCommand: |
       source .venv/bin/activate
-      bash ./start.sh
+      .venv/bin/gunicorn \
+          --worker-tmp-dir /dev/shm \
+          --workers=2 \
+          --threads=4 \
+          --worker-class=gthread \
+          --timeout 120 \
+          --bind :$PORT \
+          --access-logfile - \
+          --error-logfile - \
+          --log-level=info \
+          --preload \
+          "app:create_app()"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9  # Force Python 3.11.9 for compatibility
