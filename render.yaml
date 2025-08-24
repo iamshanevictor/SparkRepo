@@ -61,8 +61,7 @@ services:
     buildCommand: |
       cd client && \
       npm install && \
-      export VITE_API_URL=$VITE_API_URL && \
-      npm run build
+      VITE_API_URL=$VITE_API_URL npm run build
     staticPublishPath: ./client/dist
     envVars:
       - key: VITE_API_URL
