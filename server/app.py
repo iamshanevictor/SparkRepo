@@ -53,7 +53,10 @@ def create_app(test_config=None):
     # Initialize extensions
     init_jwt(app)
 
-    # Register blueprints
+    # Initialize database with models FIRST
+    init_models(app)
+
+    # Register blueprints AFTER models are initialized
     app.register_blueprint(api, url_prefix='/api')
     app.register_blueprint(auth, url_prefix='/auth')
     app.register_blueprint(admin_api, url_prefix='/admin')
@@ -66,9 +69,6 @@ def create_app(test_config=None):
         }
     })
 
-    # Initialize database with models
-    init_models(app)
-
     # Health check endpoint
     @app.route('/health')
     def health_check():
@@ -78,10 +78,8 @@ def create_app(test_config=None):
             'environment': app.config.get('ENV', 'production')
         }), 200
 
-    # Initialize database
+    # Create default admin user if not exists (models already initialized)
     with app.app_context():
-        db.create_all()
-        # Create default admin user if not exists
         from models import User
         if not User.query.filter_by(username='admin').first():
             admin = User(
