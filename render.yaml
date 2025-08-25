@@ -88,12 +88,9 @@ databases:
       postgresqlWorkMem: 10MB
       postgresqlMaintenanceWorkMem: 50MB
       postgresqlEffectiveCacheSize: 200MB
-    # Database initialization
-    initScripts:
-      - scripts/init.sql  # Optional: Add this file for initial database setup
+    # Database initialization - removed initScripts since init.sql doesn't exist
     # Backups (only available on paid plans)
     # backupRetentionInDays: 7
-    # backupStartMinute: 0
     # backupStartHour: 2
     # backupDayOfWeek: 0
     # backupDayOfMonth: 1
