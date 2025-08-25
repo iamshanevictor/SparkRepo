@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://cxraide-backend.onrender.com/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://wrong-url-test.onrender.com/api'
 console.log("Frontend API Base URL:", API_BASE_URL)
 
 function authHeaders() {
