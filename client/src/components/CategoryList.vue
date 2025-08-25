@@ -19,6 +19,8 @@
 </template>
 
 <script>
+import { api } from '../api'
+
 export default {
   name: 'CategoryList',
   data() {
@@ -35,11 +37,7 @@ export default {
     async fetchCategories() {
       try {
         this.loading = true
-        const response = await fetch('http://localhost:5000/api/categories')
-        if (!response.ok) {
-          throw new Error(`Error fetching categories: ${response.statusText}`)
-        }
-        this.categories = await response.json()
+        this.categories = await api.getCategories()
         this.loading = false
       } catch (err) {
         this.error = err.message

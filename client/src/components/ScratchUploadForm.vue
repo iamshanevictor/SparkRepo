@@ -73,6 +73,8 @@
 </template>
 
 <script>
+import { api } from '../api'
+
 export default {
   name: 'ScratchUploadForm',
   props: {
@@ -98,24 +100,21 @@ export default {
   },
   computed: {
     isValidUrl() {
-      const url = this.formData.projectUrl.trim();
-      if (!url) return false;
-      return url.startsWith('https://scratch.mit.edu/projects/');
+      if (!this.formData.projectUrl) return false
+      try {
+        const url = new URL(this.formData.projectUrl)
+        return url.hostname === 'scratch.mit.edu' && url.pathname.startsWith('/projects/')
+      } catch {
+        return false
+      }
     }
   },
   methods: {
     async submitForm() {
-      if (!this.formData.student_name.trim()) {
-        this.error = 'Please enter your full name.';
-        return;
-      }
-      if (!this.isValidUrl) {
-        this.error = `Please enter a valid Scratch project URL`;
-        return;
-      }
-      
-      this.isSubmitting = true;
-      this.error = null;
+      if (!this.isValidUrl) return
+
+      this.isSubmitting = true
+      this.error = null
 
       const submissionData = {
         student_name: this.formData.student_name,
@@ -124,20 +123,7 @@ export default {
       };
 
       try {
-        const response = await fetch(`http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}/submissions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(submissionData)
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to submit project');
-        }
-
-        const submission = await response.json();
+        const submission = await api.submitProject(this.categoryId, this.weekNumber, submissionData)
         this.$emit('submission-complete', submission);
       } catch (err) {
         this.error = err.message;
