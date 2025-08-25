@@ -29,6 +29,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9  # Force Python 3.11.9 for compatibility
+      - key: PORT
+        value: 10000  # Match the port detected by Render.com
       - key: VIRTUAL_ENV
         value: /opt/render/project/src/.venv
       - key: PATH
