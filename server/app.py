@@ -67,10 +67,14 @@ def create_app(test_config=None):
     # Register blueprints AFTER models are initialized
     try:
         print("Registering blueprints...")
+        print(f"API blueprint routes: {[rule.rule for rule in api.url_map.iter_rules()]}")
         app.register_blueprint(api, url_prefix='/api')
+        print(f"Auth blueprint routes: {[rule.rule for rule in auth.url_map.iter_rules()]}")
         app.register_blueprint(auth, url_prefix='/auth')
+        print(f"Admin blueprint routes: {[rule.rule for rule in admin_api.url_map.iter_rules()]}")
         app.register_blueprint(admin_api, url_prefix='/admin')
         print("Blueprints registered successfully")
+        print(f"Final app routes: {[rule.rule for rule in app.url_map.iter_rules()]}")
     except Exception as e:
         print(f"Error registering blueprints: {e}")
         import traceback
