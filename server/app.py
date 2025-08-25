@@ -54,12 +54,27 @@ def create_app(test_config=None):
     init_jwt(app)
 
     # Initialize database with models FIRST
-    init_models(app)
+    try:
+        print("Initializing models...")
+        init_models(app)
+        print("Models initialized successfully")
+    except Exception as e:
+        print(f"Error initializing models: {e}")
+        # Don't fail completely, but log the error
+        import traceback
+        traceback.print_exc()
 
     # Register blueprints AFTER models are initialized
-    app.register_blueprint(api, url_prefix='/api')
-    app.register_blueprint(auth, url_prefix='/auth')
-    app.register_blueprint(admin_api, url_prefix='/admin')
+    try:
+        print("Registering blueprints...")
+        app.register_blueprint(api, url_prefix='/api')
+        app.register_blueprint(auth, url_prefix='/auth')
+        app.register_blueprint(admin_api, url_prefix='/admin')
+        print("Blueprints registered successfully")
+    except Exception as e:
+        print(f"Error registering blueprints: {e}")
+        import traceback
+        traceback.print_exc()
 
     # Enable CORS for the Vue.js frontend
     cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
