@@ -4,7 +4,7 @@ Endpoints in this module require JWT auth and admin privileges.
 """
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import db, Week, Submission, Category, User
+from db_service import DatabaseService
 from auth import admin_required
 from datetime import datetime
 from utils.validators import parse_iso8601
@@ -25,8 +25,8 @@ def get_all_weeks():
         "weeks": [
             {
                 "id": 1,
-                "class_id": 1,
-                "class_name": "Coding for Kids 001 (2025)",
+                "category_id": 1,
+                "category_name": "Coding for Kids 001 (2025)",
                 "week_number": 1,
                 "title": "Week 1: Introduction to Scratch",
                 "display_name": "Introduction to Scratch",
@@ -35,18 +35,19 @@ def get_all_weeks():
         ]
     }
     """
-    weeks = Week.query.all()
+    db = DatabaseService()
+    weeks = db.get_all_weeks()
     result = []
     
     for week in weeks:
         result.append({
-            "id": week.id,
-            "category_id": week.category_id,
-            "category_name": week.category.name,
-            "week_number": week.week_number,
-            "title": week.title,
-            "display_name": week.display_name or week.title,
-            "is_active": week.is_active
+            "id": week['id'],
+            "category_id": week['category_id'],
+            "category_name": week.get('category_name'),
+            "week_number": week['week_number'],
+            "title": week['title'],
+            "display_name": week.get('display_name') or week['title'],
+            "is_active": week.get('is_active', True)
         })
     
     return jsonify({"weeks": result}), 200
@@ -74,7 +75,7 @@ def update_week(week_id):
         "message": "Week updated successfully",
         "week": {
             "id": 1,
-            "class_id": 1,
+            "category_id": 1,
             "week_number": 1,
             "title": "Updated Week Title",
             "display_name": "Custom Display Name",
@@ -85,34 +86,43 @@ def update_week(week_id):
         }
     }
     """
-    week = Week.query.get_or_404(week_id)
+    db = DatabaseService(use_admin=True)
+    week = db.get_week_by_id(week_id)
+    
+    if not week:
+        return json_error("Week not found", 404)
+    
     data = request.get_json()
     
     if not data:
         return json_error("No data provided", 400)
     
-    # Update fields if provided
+    # Prepare update data
+    update_data = {}
     if 'title' in data:
-        week.title = data['title']
+        update_data['title'] = data['title']
     if 'display_name' in data:
-        week.display_name = data['display_name']
+        update_data['display_name'] = data['display_name']
     if 'description' in data:
-        week.description = data['description']
+        update_data['description'] = data['description']
     if 'assignment_url' in data:
-        week.assignment_url = data['assignment_url']
+        update_data['assignment_url'] = data['assignment_url']
     if 'due_date' in data and data['due_date']:
         try:
-            week.due_date = parse_iso8601(data['due_date'])
+            update_data['due_date'] = parse_iso8601(data['due_date'])
         except ValueError:
             return json_error("Invalid date format", 400)
     if 'is_active' in data:
-        week.is_active = data['is_active']
+        update_data['is_active'] = data['is_active']
     
-    db.session.commit()
+    updated_week = db.update_week(week_id, **update_data)
+    
+    if not updated_week:
+        return json_error("Failed to update week", 500)
     
     return jsonify({
         "message": "Week updated successfully",
-        "week": week.to_dict()
+        "week": updated_week
     }), 200
 
 # Admin - Create a new week
@@ -138,7 +148,7 @@ def create_week(category_id):
         "message": "Week created successfully",
         "week": {
             "id": 1,
-            "class_id": 1,
+            "category_id": 1,
             "week_number": 1,
             "title": "New Week",
             "display_name": "Custom Display Name",
@@ -149,8 +159,12 @@ def create_week(category_id):
         }
     }
     """
+    db = DatabaseService(use_admin=True)
+    
     # Check if category exists
-    category = Category.query.get_or_404(category_id)
+    category = db.get_category(category_id)
+    if not category:
+        return json_error("Category not found", 404)
     
     data = request.get_json()
     
@@ -158,38 +172,35 @@ def create_week(category_id):
         return json_error("Missing required fields", 400)
     
     # Check if week number already exists for this category
-    existing_week = Week.query.filter_by(
-        category_id=category_id, 
-        week_number=data['week_number']
-    ).first()
-    
-    if existing_week:
+    if db.check_week_exists(category_id, data['week_number']):
         return json_error("Week number already exists for this category", 400)
     
+    # Parse due date if provided
+    due_date = None
+    if 'due_date' in data and data['due_date']:
+        try:
+            due_date = parse_iso8601(data['due_date'])
+        except ValueError:
+            return json_error("Invalid date format", 400)
+    
     # Create new week
-    new_week = Week(
+    new_week = db.create_week(
         category_id=category_id,
         week_number=data['week_number'],
         title=data['title'],
         display_name=data.get('display_name'),
         description=data.get('description'),
         assignment_url=data.get('assignment_url'),
+        due_date=due_date,
         is_active=data.get('is_active', True)
     )
     
-    # Set due date if provided
-    if 'due_date' in data and data['due_date']:
-        try:
-            new_week.due_date = parse_iso8601(data['due_date'])
-        except ValueError:
-            return json_error("Invalid date format", 400)
-    
-    db.session.add(new_week)
-    db.session.commit()
+    if not new_week:
+        return json_error("Failed to create week", 500)
     
     return jsonify({
         "message": "Week created successfully",
-        "week": new_week.to_dict()
+        "week": new_week
     }), 201
 
 # Admin - Get all submissions
@@ -210,7 +221,6 @@ def get_all_submissions():
         "submissions": [
             {
                 "id": 1,
-                "student_id": 1,
                 "student_name": "John Doe",
                 "week_id": 1,
                 "week_number": 1,
@@ -224,30 +234,22 @@ def get_all_submissions():
         ]
     }
     """
+    db = DatabaseService(use_admin=True)
+    
     # Get filter parameters
     category_id = request.args.get('category_id', type=int)
     week_id = request.args.get('week_id', type=int)
     status = request.args.get('status')
     
-    # Start with base query
-    query = Submission.query
-    
-    # Apply filters if provided
-    if category_id:
-        # Join with Week to filter by class_id
-        query = query.join(Week).filter(Week.category_id == category_id)
-    
-    if week_id:
-        query = query.filter(Submission.week_id == week_id)
-    
-    if status:
-        query = query.filter(Submission.status == status)
-    
-    # Get results
-    submissions = query.all()
+    # Get submissions with filters
+    submissions = db.get_all_submissions(
+        category_id=category_id,
+        week_id=week_id,
+        status=status
+    )
     
     return jsonify({
-        "submissions": [sub.to_dict() for sub in submissions]
+        "submissions": submissions
     }), 200
 
 # Admin - Update submission status
@@ -269,7 +271,6 @@ def update_submission(submission_id):
         "message": "Submission updated successfully",
         "submission": {
             "id": 1,
-            "student_id": 1,
             "student_name": "John Doe",
             "week_id": 1,
             "week_number": 1,
@@ -283,7 +284,12 @@ def update_submission(submission_id):
         }
     }
     """
-    submission = Submission.query.get_or_404(submission_id)
+    db = DatabaseService(use_admin=True)
+    submission = db.get_submission(submission_id)
+    
+    if not submission:
+        return json_error("Submission not found", 404)
+    
     data = request.get_json()
     
     if not data:
@@ -292,21 +298,25 @@ def update_submission(submission_id):
     # Get current admin user
     current_user_id = get_jwt_identity()
     
-    # Update fields if provided
+    # Prepare update data
+    update_data = {}
     if 'status' in data:
-        submission.status = data['status']
+        update_data['status'] = data['status']
     
     if 'admin_comment' in data:
-        submission.admin_comment = data['admin_comment']
+        update_data['admin_comment'] = data['admin_comment']
     
     # Track who modified it
-    submission.modified_by = current_user_id
+    update_data['modified_by'] = current_user_id
     
-    db.session.commit()
+    updated_submission = db.update_submission(submission_id, **update_data)
+    
+    if not updated_submission:
+        return json_error("Failed to update submission", 500)
     
     return jsonify({
         "message": "Submission updated successfully",
-        "submission": submission.to_dict()
+        "submission": updated_submission
     }), 200
 
 # Admin - Delete submission
@@ -322,10 +332,13 @@ def delete_submission(submission_id):
         "message": "Submission deleted successfully"
     }
     """
-    submission = Submission.query.get_or_404(submission_id)
+    db = DatabaseService(use_admin=True)
+    submission = db.get_submission(submission_id)
     
-    db.session.delete(submission)
-    db.session.commit()
+    if not submission:
+        return json_error("Submission not found", 404)
+    
+    db.delete_submission(submission_id)
     
     return jsonify({
         "message": "Submission deleted successfully"

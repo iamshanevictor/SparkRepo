@@ -2,25 +2,21 @@
 Flask==2.3.3
 Werkzeug==2.3.7
 
-# Database
-SQLAlchemy==2.0.20
-Flask-SQLAlchemy==3.1.1
-psycopg2-binary==2.9.9
-alembic==1.12.1
-Flask-Migrate==4.0.5
+# Authentication
+Flask-JWT-Extended==4.6.0
 
-# Authentication & Security
-Flask-JWT-Extended==4.5.2
-PyJWT==2.8.0
+# Supabase
+supabase==2.3.1
 python-dotenv==1.0.0
 
-# CORS & HTTP
+# Password hashing
+Werkzeug==2.3.7  # Already includes password hashing utilities
+
+# CORS
 Flask-CORS==4.0.0
 
 # Production
-# Note: gunicorn is only needed for production, not for development
 gunicorn==21.2.0
 
-# Development (optional, uncomment if needed)
-# pytest==7.4.0
-# python-dotenv==1.0.0
+# Development
+pytest==7.4.0

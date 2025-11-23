@@ -4,9 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
-# Import all models here to ensure they are registered with SQLAlchemy
-# This is needed for Flask-Migrate to detect models
-from . import app  # This will be created in __init__.py
+# The app instance will be initialized in app.py and passed to init_app()
 
 def init_app(app):
     """Initialize the SQLAlchemy instance with the Flask app."""

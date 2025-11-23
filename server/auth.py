@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, session
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from models import db, User
+from db_service import DatabaseService
 from datetime import datetime, timedelta
 import functools
 
@@ -11,9 +11,10 @@ def admin_required(f):
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        db = DatabaseService()
+        user = db.get_user_by_id(current_user_id)
         
-        if not user or not user.is_admin:
+        if not user or not user.get('is_admin'):
             return jsonify({"error": "Admin privileges required"}), 403
         return f(*args, **kwargs)
     return decorated_function
@@ -45,27 +46,31 @@ def login():
     if not data or 'username' not in data or 'password' not in data:
         return jsonify({"error": "Missing username or password"}), 400
     
-    user = User.query.filter_by(username=data['username']).first()
+    db = DatabaseService()
+    user = db.get_user_by_username(data['username'])
     
-    if not user or not user.check_password(data['password']):
+    if not user:
+        return jsonify({"error": "Invalid username or password"}), 401
+    
+    # Verify password
+    if not db.verify_password(user['password_hash'], data['password']):
         return jsonify({"error": "Invalid username or password"}), 401
     
     # Update last login time
-    user.last_login = datetime.utcnow()
-    db.session.commit()
+    db.update_user_last_login(user['id'])
     
     # Create access token
     access_token = create_access_token(
-        identity=user.id,
+        identity=user['id'],
         expires_delta=timedelta(hours=24)
     )
     
     return jsonify({
         "access_token": access_token,
         "user": {
-            "id": user.id,
-            "username": user.username,
-            "is_admin": user.is_admin
+            "id": user['id'],
+            "username": user['username'],
+            "is_admin": user.get('is_admin', False)
         }
     }), 200
 
@@ -87,13 +92,17 @@ def get_current_user():
     }
     """
     current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
+    db = DatabaseService()
+    user = db.get_user_by_id(current_user_id)
     
     if not user:
         return jsonify({"error": "User not found"}), 404
     
+    # Remove password_hash from response
+    user_dict = {k: v for k, v in user.items() if k != 'password_hash'}
+    
     return jsonify({
-        "user": user.to_dict()
+        "user": user_dict
     }), 200
 
 # Admin only - Get all users
@@ -116,9 +125,14 @@ def get_users():
         ]
     }
     """
-    users = User.query.all()
+    db = DatabaseService()
+    users = db.get_all_users()
+    
+    # Remove password_hash from response
+    users_list = [{k: v for k, v in user.items() if k != 'password_hash'} for user in users]
+    
     return jsonify({
-        "users": [user.to_dict() for user in users]
+        "users": users_list
     }), 200
 
 # Admin only - Create new user
@@ -153,31 +167,36 @@ def create_user():
     if not data or 'username' not in data or 'password' not in data:
         return jsonify({"error": "Missing required fields"}), 400
     
+    db = DatabaseService(use_admin=True)
+    
     # Check if username already exists
-    existing_user = User.query.filter_by(username=data['username']).first()
+    existing_user = db.get_user_by_username(data['username'])
     if existing_user:
         return jsonify({"error": "Username already exists"}), 400
     
     # Check if email already exists (if provided)
     if 'email' in data and data['email']:
-        existing_email = User.query.filter_by(email=data['email']).first()
+        existing_email = db.get_user_by_email(data['email'])
         if existing_email:
             return jsonify({"error": "Email already exists"}), 400
     
     # Create new user
-    new_user = User(
+    new_user = db.create_user(
         username=data['username'],
+        password=data['password'],
         email=data.get('email'),
         is_admin=data.get('is_admin', False)
     )
-    new_user.set_password(data['password'])
     
-    db.session.add(new_user)
-    db.session.commit()
+    if not new_user:
+        return jsonify({"error": "Failed to create user"}), 500
+    
+    # Remove password_hash from response
+    user_dict = {k: v for k, v in new_user.items() if k != 'password_hash'}
     
     return jsonify({
         "message": "User created successfully",
-        "user": new_user.to_dict()
+        "user": user_dict
     }), 201
 
 # Initialize JWT for the app

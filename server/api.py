@@ -3,18 +3,27 @@
 Provides category, week, and submission endpoints used by the student UI.
 """
 from flask import Flask, request, jsonify, Blueprint
-from models import db, Category, Week, Submission
+from db_service import DatabaseService
 from datetime import datetime
-from sqlalchemy.exc import IntegrityError
 from utils.errors import json_error, handle_exception
 from utils.validators import validate_required_fields
 
 # Create a Blueprint for API routes
 api = Blueprint('api', __name__)
 
-def _get_week_or_404(category_id: int, week_number: int) -> Week:
-    Category.query.get_or_404(category_id)
-    return Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
+def _get_week_or_404(category_id: int, week_number: int, db: DatabaseService):
+    """Get a week or return 404."""
+    category = db.get_category(category_id)
+    if not category:
+        from flask import abort
+        abort(404, description="Category not found")
+    
+    week = db.get_week(category_id, week_number)
+    if not week:
+        from flask import abort
+        abort(404, description="Week not found")
+    
+    return week
 
 # GET /categories - List all categories
 @api.route('/categories', methods=['GET'])
@@ -23,8 +32,9 @@ def get_categories():
     Returns a list of all available categories.
     """
     try:
-        categories = Category.query.all()
-        return jsonify([category.to_dict() for category in categories])
+        db = DatabaseService()
+        categories = db.get_all_categories()
+        return jsonify(categories)
     except Exception as e:
         return handle_exception(e, 500)
 
@@ -35,8 +45,11 @@ def get_category(category_id):
     Returns details for a specific category.
     """
     try:
-        category = Category.query.get_or_404(category_id)
-        return jsonify(category.to_dict())
+        db = DatabaseService()
+        category = db.get_category(category_id)
+        if not category:
+            return json_error("Category not found", 404)
+        return jsonify(category)
     except Exception as e:
         return handle_exception(e, 500)
 
@@ -47,9 +60,12 @@ def get_category_weeks(category_id):
     Returns all weeks for a specific category.
     """
     try:
-        Category.query.get_or_404(category_id)  # Check if category exists
-        weeks = Week.query.filter_by(category_id=category_id).order_by(Week.week_number).all()
-        return jsonify([week.to_dict() for week in weeks])
+        db = DatabaseService()
+        category = db.get_category(category_id)
+        if not category:
+            return json_error("Category not found", 404)
+        weeks = db.get_weeks_by_category(category_id)
+        return jsonify(weeks)
     except Exception as e:
         return handle_exception(e, 500)
 
@@ -62,7 +78,7 @@ def get_week_assignment(category_id, week_number):
     Example response:
     {
         "id": 1,
-        "class_id": 1,
+        "category_id": 1,
         "week_number": 1,
         "title": "Introduction to Scratch",
         "description": "Learn the basics of Scratch programming",
@@ -71,7 +87,6 @@ def get_week_assignment(category_id, week_number):
         "submissions": [
             {
                 "id": 1,
-                "student_id": 1,
                 "student_name": "John Doe",
                 "project_url": "https://scratch.mit.edu/projects/123456",
                 "submitted_at": "2025-05-28T14:30:00"
@@ -80,18 +95,16 @@ def get_week_assignment(category_id, week_number):
     }
     """
     try:
-        week = _get_week_or_404(category_id, week_number)
-        
-        # Get the week data
-        week_data = week.to_dict()
+        db = DatabaseService()
+        week = _get_week_or_404(category_id, week_number, db)
         
         # Add submissions data if requested (can be controlled by query param)
         include_submissions = request.args.get('include_submissions', 'false').lower() == 'true'
         if include_submissions:
-            submissions = Submission.query.filter_by(week_id=week.id).all()
-            week_data['submissions'] = [sub.to_dict() for sub in submissions]
+            submissions = db.get_submissions_by_week(week['id'])
+            week['submissions'] = submissions
         
-        return jsonify(week_data)
+        return jsonify(week)
     except Exception as e:
         return handle_exception(e, 500)
 
@@ -112,26 +125,28 @@ def submit_project(category_id, week_number):
         return json_error(f"Missing required fields: {', '.join(missing)}", 400)
 
     try:
+        db = DatabaseService()
         # Find the week for the submission
-        week = _get_week_or_404(category_id, week_number)
+        week = _get_week_or_404(category_id, week_number, db)
+        
+        # Get category to determine project type
+        category = db.get_category(category_id)
+        project_type = category['name'].lower() if category else 'scratch'
 
         # Create a new submission
-        submission = Submission(
+        submission = db.create_submission(
             student_name=data['student_name'],
-            week_id=week.id,
+            week_id=week['id'],
             project_url=data['project_url'],
             comment=data.get('comment'),
-            project_type=week.category.name.lower()  # Set project_type from category
+            project_type=project_type
         )
-        db.session.add(submission)
-        db.session.commit()
         
-        return jsonify(submission.to_dict()), 201
+        if not submission:
+            return json_error("Failed to create submission", 500)
+        
+        return jsonify(submission), 201
 
-    except IntegrityError as e:
-        db.session.rollback()
-        return json_error(f"Database integrity error: {e}", 400)
     except Exception as e:
-        db.session.rollback()
         return handle_exception(e, 500)
 
