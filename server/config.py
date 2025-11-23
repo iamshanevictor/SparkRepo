@@ -10,6 +10,7 @@ from typing import Optional
 
 
 class BaseConfig:
+<<<<<<< HEAD
     # Application
     DEBUG: bool = False
     SECRET_KEY: str = os.getenv("FLASK_SECRET_KEY", "dev")
@@ -19,6 +20,16 @@ class BaseConfig:
     SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
     SUPABASE_SERVICE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_KEY")
     
+=======
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    JWT_ACCESS_TOKEN_EXPIRES = int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 86400))  # 24h
+
+    # Database
+
+    # CORS
+    CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
+
+>>>>>>> 20b2416fc49e14871dfbee82dfa8edfbc23e87be
     # JWT
     JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-jwt-secret")
     JWT_ALGORITHM: str = "HS256"

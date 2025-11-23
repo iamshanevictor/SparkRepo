@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://cxraide-backend.onrender.com'
+const FULL_API_URL = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`
+console.log("Frontend API Base URL:", FULL_API_URL)
 
 function authHeaders() {
   const token = localStorage.getItem('access_token')
@@ -6,7 +8,9 @@ function authHeaders() {
 }
 
 async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const requestUrl = `${FULL_API_URL}${path}`
+  console.log("Fetch Request URL:", requestUrl)
+  const res = await fetch(requestUrl, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

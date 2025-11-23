@@ -8,13 +8,24 @@ services:
     env: python
     region: oregon  # Choose a region closest to your users
     buildCommand: |
-      python3.11 -m venv .venv
+      python -m venv .venv
       source .venv/bin/activate
       python -m pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: |
       source .venv/bin/activate
-      bash ./start.sh
+      gunicorn \
+          --worker-tmp-dir /dev/shm \
+          --workers=2 \
+          --threads=4 \
+          --worker-class=gthread \
+          --timeout 120 \
+          --bind :$PORT \
+          --access-logfile - \
+          --error-logfile - \
+          --log-level=info \
+          --preload \
+          "app:create_app()"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9  # Force Python 3.11.9 for compatibility
@@ -52,7 +63,7 @@ services:
     buildCommand: |
       cd client && \
       npm install && \
-      npm run build
+      VITE_API_URL=$VITE_API_URL npm run build
     staticPublishPath: ./client/dist
     envVars:
       - key: VITE_API_URL
@@ -66,6 +77,28 @@ services:
         destination: /index.html
     plan: free  # Start with free, upgrade as needed
 
+<<<<<<< HEAD
 # Note: Database is now hosted on Supabase
 # Configure SUPABASE_URL, SUPABASE_KEY, and SUPABASE_SERVICE_KEY
 # in the environment variables section above
+=======
+# Database configuration
+databases:
+  - name: sparkrepo-db
+    databaseName: sparkrepo
+    user: sparkrepo_user
+    region: oregon  # Should match services region
+    plan: free  # Start with free, upgrade to paid for production
+    # Database configuration
+    postgresqlSettings:
+      postgresqlSharedBuffers: 100MB
+      postgresqlWorkMem: 10MB
+      postgresqlMaintenanceWorkMem: 50MB
+      postgresqlEffectiveCacheSize: 200MB
+    # Database initialization - removed initScripts since init.sql doesn't exist
+    # Backups (only available on paid plans)
+    # backupRetentionInDays: 7
+    # backupStartHour: 2
+    # backupDayOfWeek: 0
+    # backupDayOfMonth: 1
+>>>>>>> 20b2416fc49e14871dfbee82dfa8edfbc23e87be
