@@ -2,30 +2,22 @@
 Flask==2.3.3
 Werkzeug==2.3.7
 
-<<<<<<< HEAD
 # Authentication
 Flask-JWT-Extended==4.6.0
-=======
-# Database
-SQLAlchemy~=2.0
-Flask-SQLAlchemy~=3.1
-psycopg2-binary
-alembic==1.12.1
-Flask-Migrate==4.0.5
->>>>>>> 20b2416fc49e14871dfbee82dfa8edfbc23e87be
 
-# Supabase
+# Supabase (primary database)
 supabase==2.3.1
 python-dotenv==1.0.0
-
-# Password hashing
-Werkzeug==2.3.7  # Already includes password hashing utilities
 
 # CORS
 Flask-CORS==4.0.0
 
+# Logging
+python-json-logger==2.0.7
+
 # Production
 gunicorn==21.2.0
 
-# Development
+# Development & Testing
 pytest==7.4.0
+pytest-cov==4.1.0

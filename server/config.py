@@ -10,55 +10,95 @@ from typing import Optional
 
 
 class BaseConfig:
-<<<<<<< HEAD
+    """Base configuration for all environments."""
+    
     # Application
     DEBUG: bool = False
-    SECRET_KEY: str = os.getenv("FLASK_SECRET_KEY", "dev")
+    TESTING: bool = False
+    SECRET_KEY: str = os.getenv("FLASK_SECRET_KEY", "dev-secret-key")
+    ENV: str = os.getenv("FLASK_ENV", "development")
     
     # Supabase
     SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
     SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
     SUPABASE_SERVICE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_KEY")
     
-=======
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    JWT_ACCESS_TOKEN_EXPIRES = int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 86400))  # 24h
-
-    # Database
-
-    # CORS
-    CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
-
->>>>>>> 20b2416fc49e14871dfbee82dfa8edfbc23e87be
     # JWT
     JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-jwt-secret")
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRES: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", "86400"))  # 24h
     
     # CORS
-    CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
     
     # File uploads
     MAX_CONTENT_LENGTH: int = 16 * 1024 * 1024  # 16MB max upload
     UPLOAD_FOLDER: str = "uploads"
     ALLOWED_EXTENSIONS: set[str] = {"png", "jpg", "jpeg", "gif", "pdf"}
+    
+    # Logging
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
 
 class DevelopmentConfig(BaseConfig):
+    """Development environment configuration."""
+    
     DEBUG = True
-    SUPABASE_URL = os.getenv("SUPABASE_URL", "http://localhost:54321")  # Local Supabase
+    TESTING = False
+    LOG_LEVEL = "DEBUG"
+    
+    # Use local Supabase for development
+    SUPABASE_URL = os.getenv("SUPABASE_URL", "http://localhost:54321")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY", "local-dev-key")
 
 
 class ProductionConfig(BaseConfig):
+    """Production environment configuration."""
+    
     DEBUG = False
-    # Production should have these set via environment variables
+    TESTING = False
+    LOG_LEVEL = "WARNING"
+    
+    # Production MUST have these set via environment variables
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
     SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
     JWT_SECRET = os.getenv("JWT_SECRET")
 
 
+class TestingConfig(BaseConfig):
+    """Testing environment configuration."""
+    
+    DEBUG = True
+    TESTING = True
+    LOG_LEVEL = "DEBUG"
+    
+    # Use test database/keys
+    SUPABASE_URL = os.getenv("TEST_SUPABASE_URL", "http://localhost:54321")
+    SUPABASE_KEY = os.getenv("TEST_SUPABASE_KEY", "test-key")
+
+
 def get_config() -> type[BaseConfig]:
+    """Get the appropriate config class based on environment.
+    
+    Returns:
+        BaseConfig: Configuration class for the current environment
+        
+    Raises:
+        ValueError: If environment is invalid
+    """
     env = os.environ.get("FLASK_ENV", "development").lower()
-    return ProductionConfig if env == "production" else DevelopmentConfig
+    
+    config_map = {
+        "production": ProductionConfig,
+        "prod": ProductionConfig,
+        "development": DevelopmentConfig,
+        "dev": DevelopmentConfig,
+        "testing": TestingConfig,
+        "test": TestingConfig,
+    }
+    
+    if env not in config_map:
+        raise ValueError(f"Invalid FLASK_ENV: {env}. Must be one of: {', '.join(config_map.keys())}")
+    
+    return config_map[env]

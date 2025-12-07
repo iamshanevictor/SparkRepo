@@ -2,26 +2,33 @@
 
 Provides category, week, and submission endpoints used by the student UI.
 """
-from flask import Flask, request, jsonify, Blueprint
+from flask import request, jsonify, Blueprint
 from db_service import DatabaseService
-from datetime import datetime
 from utils.errors import json_error, handle_exception
-from utils.validators import validate_required_fields
+from utils.validators import (
+    validate_required_fields,
+    validate_url,
+    validate_fields_strict,
+    sanitize_string,
+    parse_iso8601
+)
+from utils.exceptions import NotFoundError, ValidationError
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create a Blueprint for API routes
 api = Blueprint('api', __name__)
 
 def _get_week_or_404(category_id: int, week_number: int, db: DatabaseService):
-    """Get a week or return 404."""
+    """Get a week or raise NotFoundError."""
     category = db.get_category(category_id)
     if not category:
-        from flask import abort
-        abort(404, description="Category not found")
+        raise NotFoundError("Category")
     
     week = db.get_week(category_id, week_number)
     if not week:
-        from flask import abort
-        abort(404, description="Week not found")
+        raise NotFoundError("Week")
     
     return week
 
@@ -111,20 +118,32 @@ def get_week_assignment(category_id, week_number):
 # POST /categories/{id}/weeks/{week}/submissions - Submit a project link
 @api.route('/categories/<int:category_id>/weeks/<int:week_number>/submissions', methods=['POST'])
 def submit_project(category_id, week_number):
-    """
-    Submit a project link for a specific week.
-    """
-    data = request.get_json()
-    if not data:
-        return json_error("No data provided", 400)
-
-    # Validate required fields
-    required_fields = ['student_name', 'project_url']
-    ok, missing = validate_required_fields(data, required_fields)
-    if not ok:
-        return json_error(f"Missing required fields: {', '.join(missing)}", 400)
-
+    """Submit a project link for a specific week."""
     try:
+        data = request.get_json()
+        if not data:
+            raise ValidationError("No JSON data provided")
+
+        # Validate required fields
+        try:
+            validate_fields_strict(data, ['student_name', 'project_url'])
+        except ValidationError as e:
+            return json_error(str(e), 400)
+        
+        # Validate and sanitize inputs
+        student_name = sanitize_string(data['student_name'], max_length=100)
+        if not student_name:
+            raise ValidationError("Student name cannot be empty")
+        
+        project_url = data['project_url'].strip()
+        if not validate_url(project_url):
+            raise ValidationError("Invalid project URL format")
+        
+        # Optional comment
+        comment = None
+        if 'comment' in data and data['comment']:
+            comment = sanitize_string(data['comment'], max_length=500)
+        
         db = DatabaseService()
         # Find the week for the submission
         week = _get_week_or_404(category_id, week_number, db)
@@ -135,18 +154,23 @@ def submit_project(category_id, week_number):
 
         # Create a new submission
         submission = db.create_submission(
-            student_name=data['student_name'],
+            student_name=student_name,
             week_id=week['id'],
-            project_url=data['project_url'],
-            comment=data.get('comment'),
+            project_url=project_url,
+            comment=comment,
             project_type=project_type
         )
         
         if not submission:
-            return json_error("Failed to create submission", 500)
+            raise ValidationError("Failed to create submission")
         
+        logger.info(f"Submission created: student={student_name}, week={week_number}, category={category_id}")
         return jsonify(submission), 201
 
+    except NotFoundError as e:
+        return json_error(str(e), 404)
+    except ValidationError as e:
+        return json_error(str(e), 400)
     except Exception as e:
         return handle_exception(e, 500)
 

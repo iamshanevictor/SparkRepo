@@ -1,183 +1,27 @@
-from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
+"""
+DEPRECATED: This file is no longer used.
 
-db = SQLAlchemy()
+SparkRepo uses Supabase as the primary database service (REST API-based),
+not SQLAlchemy ORM models. Database operations are handled via db_service.py
+and the Supabase client directly.
 
-<<<<<<< HEAD
-# The app instance will be initialized in app.py and passed to init_app()
-=======
-# Import all models here to ensure they are registered with SQLAlchemy
-# This is needed for Flask-Migrate to detect models
->>>>>>> 20b2416fc49e14871dfbee82dfa8edfbc23e87be
+To see current data models, check the Supabase schema or refer to db_service.py
+for the data structure formatting methods (_format_*).
 
-def init_app(app):
-    """Initialize the SQLAlchemy instance with the Flask app."""
-    db.init_app(app)
-    with app.app_context():
-        # Create tables if they don't exist
-        db.create_all()
-    return app
+This file is kept for reference only.
+"""
 
-class Category(db.Model):
-    """Category model representing a project type, e.g., Scratch or Canva."""
-    __tablename__ = 'categories'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
-    description = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    weeks = db.relationship('Week', back_populates='category', cascade='all, delete-orphan')
-    
-    def __repr__(self):
-        return f'<Category {self.name}>'
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'description': self.description
-        }
+# DATABASE SCHEMA REFERENCE (maintained in Supabase):
+#
+# Tables:
+# - categories: id (PK), name (UNIQUE), description, created_at
+# - users: id (PK), username (UNIQUE), password_hash, email (UNIQUE), is_admin, created_at, last_login
+# - weeks: id (PK), category_id (FK), week_number, title, display_name, description, assignment_url, due_date, is_active, created_at, last_modified
+# - submissions: id (PK), student_name, week_id (FK), project_type, project_url, comment, admin_comment, status, submitted_at, last_modified, modified_by (FK)
+#
+# Relationships:
+# - categories.id -> weeks.category_id (CASCADE DELETE)
+# - weeks.id -> submissions.week_id (CASCADE DELETE)
+# - users.id -> submissions.modified_by
 
-
-class User(db.Model):
-    """User model for authentication, including admin users."""
-    __tablename__ = 'users'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=True)
-    is_admin = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_login = db.Column(db.DateTime, nullable=True)
-    
-    # Relationships
-    modified_submissions = db.relationship('Submission', back_populates='admin', foreign_keys='Submission.modified_by')
-    
-    def __init__(self, **kwargs):
-        super(User, self).__init__(**kwargs)
-        if self.email and not self.username:
-            self.username = self.email.split('@')[0]
-    
-    def __repr__(self):
-        return f'<User {self.username}>'
-    
-    def set_password(self, password):
-        """Create hashed password."""
-        self.password_hash = generate_password_hash(password)
-    
-    def check_password(self, password):
-        """Check hashed password."""
-        return check_password_hash(self.password_hash, password)
-    
-    def to_dict(self):
-        """Convert user object to dictionary."""
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email,
-            'is_admin': self.is_admin,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
-        }
-    
-    @classmethod
-    def get_by_username(cls, username):
-        """Get user by username."""
-        return cls.query.filter_by(username=username).first()
-    
-    @classmethod
-    def get_by_email(cls, email):
-        """Get user by email."""
-        return cls.query.filter_by(email=email).first()
-    
-    def update_last_login(self):
-        """Update the last login timestamp."""
-        self.last_login = datetime.utcnow()
-        db.session.commit()
-
-
-class Week(db.Model):
-    """Week model representing a weekly assignment."""
-    __tablename__ = 'weeks'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
-    week_number = db.Column(db.Integer, nullable=False)
-    title = db.Column(db.String(100), nullable=False)
-    display_name = db.Column(db.String(100), nullable=True)  # Added for flexible naming
-    description = db.Column(db.Text, nullable=True)
-    assignment_url = db.Column(db.String(255), nullable=True)
-    due_date = db.Column(db.DateTime, nullable=True)
-    is_active = db.Column(db.Boolean, default=True)  # Added to control visibility
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    category = db.relationship('Category', back_populates='weeks')
-    submissions = db.relationship('Submission', back_populates='week', cascade='all, delete-orphan')
-    
-    __table_args__ = (
-        db.UniqueConstraint('category_id', 'week_number', name='unique_category_week'),
-    )
-    
-    def __repr__(self):
-        return f'<Week {self.week_number} for Category {self.category_id}>'
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'category_id': self.category_id,
-            'week_number': self.week_number,
-            'title': self.title,
-            'display_name': self.display_name or self.title,
-            'description': self.description,
-            'assignment_url': self.assignment_url,
-            'due_date': self.due_date.isoformat() if self.due_date else None,
-            'is_active': self.is_active,
-            'last_modified': self.last_modified.isoformat()
-        }
-
-
-class Submission(db.Model):
-    """Submission model representing a student's project link submission."""
-    __tablename__ = 'submissions'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    student_name = db.Column(db.String(100), nullable=False)
-    week_id = db.Column(db.Integer, db.ForeignKey('weeks.id'), nullable=False)
-    project_type = db.Column(db.String(50), nullable=False, default='scratch')  # 'scratch' or 'canva'
-    project_url = db.Column(db.String(255), nullable=False)
-    comment = db.Column(db.Text, nullable=True)
-    admin_comment = db.Column(db.Text, nullable=True)  # Added for admin feedback
-    status = db.Column(db.String(20), default='submitted')  # e.g., 'submitted', 'approved', 'rejected'
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    modified_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Track who modified it
-    
-    # Relationships
-    week = db.relationship('Week', back_populates='submissions')
-    admin = db.relationship('User', foreign_keys=[modified_by], back_populates='modified_submissions')
-    
-    def __repr__(self):
-        return f'<Submission by {self.student_name} for Week {self.week.week_number}>'
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'student_name': self.student_name,
-            'week_id': self.week_id,
-            'week_number': self.week.week_number,
-            'week_title': self.week.display_name or self.week.title,
-            'project_type': self.project_type,
-            'project_url': self.project_url,
-            'comment': self.comment,
-            'admin_comment': self.admin_comment,
-            'status': self.status,
-            'submitted_at': self.submitted_at.isoformat(),
-            'last_modified': self.last_modified.isoformat()
-        }
 

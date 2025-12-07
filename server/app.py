@@ -5,7 +5,8 @@ exposes basic health and API discovery endpoints.
 """
 import os
 import secrets
-from flask import Flask, jsonify, send_from_directory
+import logging
+from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -15,6 +16,9 @@ from auth import auth, init_jwt
 from admin import admin_api
 from config import get_config
 from db_service import DatabaseService
+from utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 def create_app(test_config=None):
     """Create and configure the Flask application."""
@@ -22,78 +26,67 @@ def create_app(test_config=None):
     load_dotenv()
 
     app = Flask(__name__)
+    
+    # Setup logging
+    setup_logger('sparkrepo')
+    logger.info("Initializing SparkRepo Flask application...")
 
     # Load config class
-    ConfigClass = get_config()
-    app.config.from_object(ConfigClass)
+    try:
+        ConfigClass = get_config()
+        app.config.from_object(ConfigClass)
+        logger.info(f"Configuration loaded: {ConfigClass.__name__}")
+    except Exception as e:
+        logger.error(f"Failed to load configuration: {e}")
+        raise
 
-<<<<<<< HEAD
     # Verify Supabase configuration
-    if not os.environ.get('SUPABASE_URL') or not os.environ.get('SUPABASE_KEY'):
-        raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in environment variables")
-=======
-    # Configure database
-    database_url = os.environ.get('DATABASE_URL')
-    if database_url:
-        if database_url.startswith('postgres://'):
-            app.config['SQLALCHEMY_DATABASE_URI'] = database_url.replace('postgres://', 'postgresql://', 1)
-        else:
-            app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    else:
-        # Fallback to SQLite if no DATABASE_URL is provided
-        basedir = os.path.abspath(os.path.dirname(__file__))
-        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "sparkrepo.db")}'
-
-    # Configure SQLAlchemy
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_pre_ping': True,
-        'pool_recycle': 300,
-    }
->>>>>>> 20b2416fc49e14871dfbee82dfa8edfbc23e87be
+    supabase_url = os.environ.get('SUPABASE_URL')
+    supabase_key = os.environ.get('SUPABASE_KEY')
+    if not supabase_url or not supabase_key:
+        error_msg = "SUPABASE_URL and SUPABASE_KEY must be set in environment variables"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
     # Configure JWT
-    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY') or secrets.token_hex(32)
+    jwt_secret = os.environ.get('JWT_SECRET_KEY') or secrets.token_hex(32)
+    app.config['JWT_SECRET_KEY'] = jwt_secret
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = int(os.environ.get('JWT_ACCESS_TOKEN_EXPIRES', 86400))
+    
+    logger.info(f"JWT configured with {len(jwt_secret)} character secret")
 
-<<<<<<< HEAD
     # Initialize JWT
-=======
-    # Initialize extensions
->>>>>>> 20b2416fc49e14871dfbee82dfa8edfbc23e87be
-    init_jwt(app)
-
-    # Initialize database with models FIRST
     try:
-        print("Initializing models...")
-        init_models(app)
-        print("Models initialized successfully")
+        init_jwt(app)
+        logger.info("JWT manager initialized successfully")
     except Exception as e:
-        print(f"Error initializing models: {e}")
-        # Don't fail completely, but log the error
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Failed to initialize JWT: {e}")
+        raise
 
-    # Register blueprints AFTER models are initialized
+    # Register blueprints
     try:
-        print("Registering blueprints...")
+        logger.info("Registering blueprints...")
         app.register_blueprint(api, url_prefix='/api')
         app.register_blueprint(auth, url_prefix='/auth')
         app.register_blueprint(admin_api, url_prefix='/admin')
-        print("Blueprints registered successfully")
-        print(f"Final app routes: {[rule.rule for rule in app.url_map.iter_rules()]}")
+        logger.info("Blueprints registered successfully")
+        
+        # Log all registered routes
+        routes = [rule.rule for rule in app.url_map.iter_rules()]
+        logger.debug(f"Registered routes: {routes}")
     except Exception as e:
-        print(f"Error registering blueprints: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error registering blueprints: {e}")
+        raise
 
     # Enable CORS for the Vue.js frontend
-    cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
-    CORS(app, resources={
-        r"/*": {
-            "origins": cors_origins
-        }
-    })
+    try:
+        cors_origins_str = os.environ.get('CORS_ORIGINS', 'http://localhost:5173')
+        cors_origins = [origin.strip() for origin in cors_origins_str.split(',')]
+        CORS(app, resources={r"/*": {"origins": cors_origins}})
+        logger.info(f"CORS enabled for origins: {cors_origins}")
+    except Exception as e:
+        logger.error(f"Failed to configure CORS: {e}")
+        raise
 
     # Health check endpoint
     @app.route('/health')
@@ -104,7 +97,6 @@ def create_app(test_config=None):
             'environment': app.config.get('ENV', 'production')
         }), 200
 
-<<<<<<< HEAD
     # API discovery endpoint
     @app.route('/api', methods=['GET'])
     def api_root():
@@ -139,33 +131,28 @@ def create_app(test_config=None):
     try:
         db = DatabaseService(use_admin=True)
         admin_user = db.get_user_by_username('admin')
-        if not admin_user:
-            db.create_user(
+        if admin_user:
+            logger.info("Admin user already exists")
+        else:
+            admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+            admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
+            new_admin = db.create_user(
                 username='admin',
-                password=os.environ.get('ADMIN_PASSWORD', 'admin123'),
-                email=os.environ.get('ADMIN_EMAIL', 'admin@example.com'),
+                password=admin_password,
+                email=admin_email,
                 is_admin=True
             )
+            if new_admin:
+                logger.info(f"Default admin user created: {admin_email}")
+            else:
+                logger.warning("Failed to create default admin user")
     except Exception as e:
-        # Log error but don't fail startup - tables might not exist yet
-        print(f"Warning: Could not initialize admin user: {e}")
-=======
-    # Create default admin user if not exists (models already initialized)
-    with app.app_context():
-        from models import User
-        if not User.query.filter_by(username='admin').first():
-            admin = User(
-                username='admin',
-                email=os.environ.get('ADMIN_EMAIL', 'admin@example.com'),
-                is_admin=True
-            )
-            admin.set_password(os.environ.get('ADMIN_PASSWORD', 'admin123'))
-            db.session.add(admin)
-            db.session.commit()
->>>>>>> 20b2416fc49e14871dfbee82dfa8edfbc23e87be
+        logger.warning(f"Could not initialize admin user (database may not be ready): {e}")
 
+    logger.info("✓ SparkRepo application initialized successfully")
     return app
 
 if __name__ == '__main__':
     app = create_app()
+    logger.info("Starting SparkRepo server on http://0.0.0.0:5000")
     app.run(debug=True, host='0.0.0.0', port=5000)
