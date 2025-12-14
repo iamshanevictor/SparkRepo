@@ -1,0 +1,104 @@
+# Render Blueprint for SparkRepo
+# Reference: https://render.com/docs/blueprint-spec
+
+services:
+  # Backend service (Python/Flask)
+  - type: web
+    name: sparkrepo-backend
+    env: python
+    region: oregon  # Choose a region closest to your users
+    buildCommand: |
+      python -m venv .venv
+      source .venv/bin/activate
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: |
+      source .venv/bin/activate
+      gunicorn \
+          --worker-tmp-dir /dev/shm \
+          --workers=2 \
+          --threads=4 \
+          --worker-class=gthread \
+          --timeout 120 \
+          --bind :$PORT \
+          --access-logfile - \
+          --error-logfile - \
+          --log-level=info \
+          --preload \
+          "app:create_app()"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9  # Force Python 3.11.9 for compatibility
+      - key: VIRTUAL_ENV
+        value: /opt/render/project/src/.venv
+      - key: PATH
+        value: /opt/render/project/src/.venv/bin:$PATH
+      - key: FLASK_APP
+        value: app.py
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@example.com  # Change this to your admin email
+      - key: ADMIN_PASSWORD
+        generateValue: true  # Will be auto-generated, change after first deploy
+      - key: CORS_ORIGINS
+        value: https://sparkrepo-frontend.onrender.com,http://localhost:5173
+      - key: SUPABASE_URL
+        sync: false  # Set this manually in Render dashboard
+      - key: SUPABASE_KEY
+        sync: false  # Set this manually in Render dashboard (anon/public key)
+      - key: SUPABASE_SERVICE_KEY
+        sync: false  # Set this manually in Render dashboard (service role key)
+    plan: free  # Start with free, upgrade as needed
+
+  # Frontend service (Vue.js)
+  - type: web
+    name: sparkrepo-frontend
+    env: static
+    region: oregon  # Should match backend region
+    buildCommand: |
+      cd client && \
+      npm install && \
+      VITE_API_URL=$VITE_API_URL npm run build
+    staticPublishPath: ./client/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: sparkrepo-backend
+          type: web
+          property: url
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    plan: free  # Start with free, upgrade as needed
+
+<<<<<<< HEAD
+# Note: Database is now hosted on Supabase
+# Configure SUPABASE_URL, SUPABASE_KEY, and SUPABASE_SERVICE_KEY
+# in the environment variables section above
+=======
+# Database configuration
+databases:
+  - name: sparkrepo-db
+    databaseName: sparkrepo
+    user: sparkrepo_user
+    region: oregon  # Should match services region
+    plan: free  # Start with free, upgrade to paid for production
+    # Database configuration
+    postgresqlSettings:
+      postgresqlSharedBuffers: 100MB
+      postgresqlWorkMem: 10MB
+      postgresqlMaintenanceWorkMem: 50MB
+      postgresqlEffectiveCacheSize: 200MB
+    # Database initialization - removed initScripts since init.sql doesn't exist
+    # Backups (only available on paid plans)
+    # backupRetentionInDays: 7
+    # backupStartHour: 2
+    # backupDayOfWeek: 0
+    # backupDayOfMonth: 1
+>>>>>>> 20b2416fc49e14871dfbee82dfa8edfbc23e87be

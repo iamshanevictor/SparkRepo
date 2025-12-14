@@ -2,69 +2,54 @@
   <div class="upload-form-overlay">
     <div class="upload-form">
       <div class="form-header">
-        <h3>{{ isUpdate ? 'Update Your Submission' : 'Submit Your Project' }}</h3>
-        <button class="close-btn" @click="close">×</button>
+        <h3>Submit Your {{ projectLabel }} Project</h3>
+        <button class="close-btn" @click="$emit('close')">×</button>
       </div>
-      
+
       <div v-if="error" class="error-message">{{ error }}</div>
-      
+
       <form @submit.prevent="submitForm">
         <div class="form-group">
-          <label for="full-name">Full Name:</label>
-          <input 
-            id="full-name"
-            v-model="formData.fullName"
-            type="text" 
+          <label for="student-name">Full Name:</label>
+          <input
+            id="student-name"
+            v-model="form.student_name"
+            type="text"
             placeholder="Enter your full name"
             required
-            :disabled="isSubmitting"
+            :disabled="loading"
           />
         </div>
 
         <div class="form-group">
-          <label for="project-url">{{ projectUrlLabel }}:</label>
-          <input 
+          <label for="project-url">{{ projectLabel }} Project URL:</label>
+          <input
             id="project-url"
-            v-model="formData.projectUrl"
-            type="url" 
-            :placeholder="projectUrlPlaceholder"
+            v-model="form.project_url"
+            type="url"
+            :placeholder="urlPlaceholder"
             required
-            :disabled="isSubmitting"
+            :disabled="loading"
           />
-          <small>{{ projectUrlHint }}</small>
+          <small>{{ helperText }}</small>
         </div>
-        
+
         <div class="form-group">
           <label for="comment">Comment (optional):</label>
-          <textarea 
+          <textarea
             id="comment"
-            v-model="formData.comment"
+            v-model="form.comment"
             placeholder="Add any comments about your project here..."
             rows="3"
-            :disabled="isSubmitting"
+            :disabled="loading"
           ></textarea>
         </div>
-        
+
         <div class="form-actions">
-          <button 
-            type="button" 
-            class="cancel-btn" 
-            @click="close"
-            :disabled="isSubmitting"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit" 
-            class="submit-btn" 
-            :disabled="isSubmitting || !isValidUrl"
-          >
-            <span v-if="isSubmitting">
-              <span class="spinner"></span> Submitting...
-            </span>
-            <span v-else>
-              {{ isUpdate ? 'Update Submission' : 'Submit Project' }}
-            </span>
+          <button type="button" class="cancel-btn" @click="$emit('close')" :disabled="loading">Cancel</button>
+          <button type="submit" class="submit-btn" :disabled="loading || !validUrl">
+            <span v-if="loading"><span class="spinner"></span> Submitting...</span>
+            <span v-else>Submit Project</span>
           </button>
         </div>
       </form>
@@ -73,243 +58,102 @@
 </template>
 
 <script>
+import { api } from '../api'
+
 export default {
   name: 'UploadForm',
   props: {
-    categoryId: {
-      type: Number,
-      required: true
-    },
-    categoryInfo: {
-      type: Object,
-      required: true
-    },
-    weekNumber: {
-      type: Number,
-      required: true
-    },
-    existingSubmission: {
-      type: Object,
-      default: null
-    }
+    categoryId: { type: Number, required: true },
+    weekNumber: { type: Number, required: true },
+    categoryInfo: { type: Object, required: true },
   },
   data() {
     return {
-      formData: {
-        fullName: '',
-        projectUrl: '',
-        comment: ''
+      loading: false,
+      error: null,
+      form: {
+        student_name: '',
+        project_url: '',
+        comment: '',
       },
-      isSubmitting: false,
-      error: null
     }
   },
   computed: {
-    projectType() {
-      return this.categoryInfo ? this.categoryInfo.project_type : 'scratch';
+    categoryNameLower() {
+      return (this.categoryInfo?.name || '').toLowerCase()
     },
-    isUpdate() {
-      return this.existingSubmission !== null
+    isCanva() {
+      return this.categoryNameLower.includes('canva')
     },
-    isValidUrl() {
-      const url = this.formData.projectUrl.trim();
-      if (!url) return false;
-
-      if (this.projectType === 'scratch') {
-        return url.startsWith('https://scratch.mit.edu/projects/');
-      } else if (this.projectType === 'canva') {
-        return url.startsWith('https://www.canva.com/design/');
-      }
-      return false;
+    isScratch() {
+      return this.categoryNameLower.includes('scratch')
     },
-    projectUrlLabel() {
-      return this.projectType === 'scratch' ? 'Scratch Project URL' : 'Canva Project URL';
+    projectLabel() {
+      if (this.isCanva) return 'Canva'
+      if (this.isScratch) return 'Scratch'
+      return this.categoryInfo?.name || 'Project'
     },
-    projectUrlPlaceholder() {
-      return this.projectType === 'scratch' 
-        ? 'https://scratch.mit.edu/projects/123456' 
-        : 'https://www.canva.com/design/your-design-id/view';
+    urlPlaceholder() {
+      if (this.isCanva) return 'https://www.canva.com/design/your-design-id/view'
+      if (this.isScratch) return 'https://scratch.mit.edu/projects/123456'
+      return 'https://example.com/your-project'
     },
-    projectUrlHint() {
-      return this.projectType === 'scratch'
-        ? 'Please enter the full URL to your Scratch project'
-        : 'Please enter the shareable URL of your Canva project';
-    }
-  },
-  created() {
-    // Pre-fill form if updating an existing submission
-    if (this.existingSubmission) {
-      this.formData.fullName = this.existingSubmission.student_name || '';
-      this.formData.projectUrl = this.existingSubmission.project_url;
-      this.formData.comment = this.existingSubmission.comment || '';
-    }
+    helperText() {
+      if (this.isCanva) return 'Please enter the shareable URL of your Canva project'
+      if (this.isScratch) return 'Please enter the full URL to your Scratch project'
+      return 'Please enter a valid project URL'
+    },
+    validUrl() {
+      const url = (this.form.project_url || '').trim()
+      if (!url) return false
+      if (this.isCanva) return url.startsWith('https://www.canva.com/design/')
+      if (this.isScratch) return url.startsWith('https://scratch.mit.edu/projects/')
+      try { new URL(url); return true } catch { return false }
+    },
   },
   methods: {
     async submitForm() {
-      if (!this.formData.fullName.trim()) {
-        this.error = 'Please enter your full name.';
-        return;
+      if (!this.form.student_name.trim()) {
+        this.error = 'Please enter your full name.'
+        return
       }
-      if (!this.isValidUrl) {
-        this.error = `Please enter a valid ${this.projectType === 'scratch' ? 'Scratch' : 'Canva'} project URL`;
-        return;
+      if (!this.validUrl) {
+        this.error = 'Please enter a valid project URL.'
+        return
       }
-      
+      this.loading = true
+      this.error = null
       try {
-        this.isSubmitting = true
-        this.error = null
-        
-        const response = await fetch(
-          `http://localhost:5000/api/categories/${this.categoryId}/weeks/${this.weekNumber}/submissions`, 
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              full_name: this.formData.fullName,
-              project_type: this.projectType,
-              project_url: this.formData.projectUrl,
-              comment: this.formData.comment || null
-            })
-          }
-        )
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to submit project')
+        const payload = {
+          student_name: this.form.student_name,
+          project_url: this.form.project_url,
+          comment: this.form.comment || null,
         }
-        
-        const submission = await response.json()
+        const submission = await api.submitProject(this.categoryId, this.weekNumber, payload)
         this.$emit('submission-complete', submission)
-      } catch (err) {
-        this.error = err.message
-        console.error('Submission error:', err)
+      } catch (e) {
+        this.error = e.message || 'Failed to submit project'
       } finally {
-        this.isSubmitting = false
+        this.loading = false
       }
     },
-    close() {
-      this.$emit('close')
-    }
-  }
+  },
 }
 </script>
 
 <style scoped>
-.upload-form-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.upload-form {
-  background-color: white;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-.form-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #6c757d;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-input, textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
-small {
-  display: block;
-  margin-top: 5px;
-  color: #6c757d;
-  font-size: 12px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.cancel-btn {
-  background-color: #f8f9fa;
-  border: 1px solid #ced4da;
-  color: #212529;
-  padding: 10px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.submit-btn {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.submit-btn:disabled {
-  background-color: #8bc34a;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.error-message {
-  background-color: #f8d7da;
-  color: #721c24;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 16px;
-}
-
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-radius: 50%;
-  border-top-color: #fff;
-  animation: spin 1s ease-in-out infinite;
-  margin-right: 8px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+.upload-form-overlay { position: fixed; inset: 0; background-color: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.upload-form { background: #fff; border-radius: 8px; width: 90%; max-width: 520px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,.15); }
+.form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.close-btn { background: none; border: none; font-size: 22px; cursor: pointer; color: #6c757d; }
+.form-group { margin-bottom: 16px; }
+label { display: block; margin-bottom: 6px; font-weight: 500; }
+input, textarea { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 16px; }
+small { display: block; margin-top: 4px; color: #6c757d; font-size: 12px; }
+.form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+.cancel-btn { background: #f8f9fa; border: 1px solid #ced4da; color: #212529; padding: 10px 16px; border-radius: 4px; }
+.submit-btn { background: #4CAF50; color: #fff; border: none; padding: 10px 16px; border-radius: 4px; }
+.submit-btn:disabled { background: #8bc34a; opacity: .8; cursor: not-allowed; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg) } }
 </style>

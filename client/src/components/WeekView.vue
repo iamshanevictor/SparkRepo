@@ -25,33 +25,17 @@
       </div>
       
       <div class="submission-section">
-        <h4>Your Submission</h4>
-        <div v-if="hasSubmitted" class="existing-submission">
-          <p>You've already submitted a project for this week:</p>
-          <a :href="userSubmission.project_url" target="_blank" rel="noopener noreferrer" class="submission-link">
-            {{ userSubmission.project_url }}
-          </a>
-          <p v-if="userSubmission.comment" class="comment">
-            <strong>Your comment:</strong> {{ userSubmission.comment }}
-          </p>
-          <p class="submitted-date">
-            Submitted on {{ formatDate(userSubmission.submitted_at) }}
-          </p>
-          <button @click="showSubmissionForm = true" class="update-btn">Update Submission</button>
-        </div>
-        <div v-else>
-          <p>You haven't submitted a project for this week yet.</p>
-          <button @click="showSubmissionForm = true" class="submit-btn">Submit Your Project</button>
-        </div>
+        <h4>Ready to Submit?</h4>
+        <p>Click the button below to upload your project for this week.</p>
+        <button @click="showSubmissionForm = true" class="submit-btn">Submit Your Project</button>
       </div>
     </div>
     
-    <UploadForm 
-      v-if="showSubmissionForm" 
-      :category-id="categoryId" 
-      :category-info="categoryInfo"
+    <UploadForm
+      v-if="showSubmissionForm"
+      :category-id="categoryId"
       :week-number="weekNumber"
-      :existing-submission="userSubmission"
+      :category-info="categoryInfo"
       @close="showSubmissionForm = false"
       @submission-complete="handleSubmissionComplete"
     />
@@ -59,14 +43,13 @@
 </template>
 
 <script>
-import UploadForm from './UploadForm.vue'
-import { apiGet } from '../services/apiClient'
-import { formatDate as formatDateUtil } from '../utils/date'
+import { api } from '../api';
+import UploadForm from './UploadForm.vue';
 
 export default {
   name: 'WeekView',
   components: {
-    UploadForm
+    UploadForm,
   },
   props: {
     categoryId: {
@@ -75,16 +58,12 @@ export default {
     },
     weekNumber: {
       type: Number,
-      required: true
+      required: false
     },
     categoryInfo: {
       type: Object,
       required: true
     },
-    studentId: {
-      type: Number,
-      required: true
-    }
   },
   data() {
     return {
@@ -92,47 +71,51 @@ export default {
       loading: true,
       error: null,
       showSubmissionForm: false,
-      userSubmission: null
     }
   },
-  computed: {
-    hasSubmitted() {
-      return this.userSubmission !== null
+  computed: {},
+  watch: {
+    weekNumber: {
+      immediate: true,
+      handler(newWeek) {
+        if (newWeek !== null && newWeek !== undefined) {
+          this.fetchWeekData();
+        }
+      }
     }
-  },
-  mounted() {
-    this.fetchWeekData()
   },
   methods: {
     async fetchWeekData() {
       try {
-        this.loading = true
-        this.weekData = await apiGet(`/api/categories/${this.categoryId}/weeks/${this.weekNumber}?include_submissions=true`)
-        
-        // Find the user's submission if it exists
-        if (this.weekData.submissions) {
-          this.userSubmission = this.weekData.submissions.find(
-            sub => sub.student_id === this.studentId
-          ) || null
-        }
-        
-        this.loading = false
-      } catch (err) {
-        this.error = err.message
-        this.loading = false
-        console.error('Failed to fetch week data:', err)
+        this.loading = true;
+        this.error = null;
+        this.weekData = await api.getWeek(this.categoryId, this.weekNumber);
+      } catch (error) {
+        console.error('Error fetching week data:', error);
+        this.error = error.message || 'Failed to load week data. Please try again.';
+      } finally {
+        this.loading = false;
       }
     },
     formatDate(dateString) {
-      return formatDateUtil(dateString)
+      if (!dateString) return 'N/A'
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
     },
     goBack() {
       this.$emit('go-back')
     },
     handleSubmissionComplete(submission) {
-      this.userSubmission = submission
       this.showSubmissionForm = false
-      this.fetchWeekData() // Refresh data
+      // Optionally, show a success message
+      alert('Your project has been submitted successfully!')
+      this.goBack()
     }
   }
 }
@@ -152,7 +135,7 @@ export default {
 }
 
 .back-btn {
-  background-color: #f8f9fa;
+  background-color: #000000;
   border: 1px solid #dee2e6;
   border-radius: 4px;
   padding: 8px 16px;

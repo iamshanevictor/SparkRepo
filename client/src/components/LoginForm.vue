@@ -44,6 +44,9 @@
 </template>
 
 <script>
+import { api } from '../api'
+import { useAuth } from '../composables/useAuth'
+
 export default {
   name: 'LoginForm',
   data() {
@@ -62,26 +65,9 @@ export default {
       this.error = null
       
       try {
-        const response = await fetch('http://localhost:5000/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(this.credentials)
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Login failed')
-        }
-        
-        const data = await response.json()
-        
-        // Store token and user info in localStorage
-        localStorage.setItem('auth_token', data.access_token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        
-        // Emit login event
+        const data = await api.login(this.credentials.username, this.credentials.password)
+        const { login } = useAuth()
+        login(data.access_token, data.user)
         this.$emit('login-success', data.user)
       } catch (err) {
         this.error = err.message

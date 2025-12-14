@@ -1,9 +1,3 @@
-<!--
-  AdminDashboard.vue
-  High-level admin container with tabs for managing Weeks, Submissions, and
-  Project Submissions. Consider splitting into subcomponents in a future PR.
-  Note: UI copy updated to use "Category" terminology.
--->
 <template>
   <div class="admin-dashboard">
     <div class="admin-header">
@@ -24,12 +18,7 @@
       >
         Manage Submissions
       </button>
-      <button 
-        :class="['tab-btn', { active: activeTab === 'projectSubmissions' }]" 
-        @click="activeTab = 'projectSubmissions'"
-      >
-        Project Submissions
-      </button>
+
     </div>
     
     <!-- Weeks Management Tab -->
@@ -41,9 +30,7 @@
       
       <div v-if="loading.weeks" class="loading">Loading weeks...</div>
       <div v-else-if="error.weeks" class="error">{{ error.weeks }}</div>
-      <div v-else>
-        <AdminWeeksTable :weeks="weeks" @edit="editWeek" />
-      </div>
+      <WeeksTable v-else :weeks="weeks" @edit="editWeek" />
       
       <!-- Edit Week Modal -->
       <div v-if="showEditWeekForm" class="modal">
@@ -109,9 +96,9 @@
           
           <form @submit.prevent="addWeek">
             <div class="form-group">
-              <label for="new-class">Category</label>
-              <select id="new-class" v-model="newWeek.category_id" required>
-                <option v-for="cls in categories" :key="cls.id" :value="cls.id">
+              <label for="new-class">Class</label>
+              <select id="new-class" v-model="newWeek.class_id" required>
+                <option v-for="cls in classes" :key="cls.id" :value="cls.id">
                   {{ cls.name }}
                 </option>
               </select>
@@ -164,9 +151,9 @@
       <div class="section-header">
         <h3>Submissions Management</h3>
         <div class="filters">
-          <select v-model="filters.category_id" @change="fetchSubmissions">
-            <option value="">All Categories</option>
-            <option v-for="cls in categories" :key="cls.id" :value="cls.id">
+          <select v-model="filters.class_id" @change="fetchSubmissions">
+            <option value="">All Classes</option>
+            <option v-for="cls in classes" :key="cls.id" :value="cls.id">
               {{ cls.name }}
             </option>
           </select>
@@ -192,13 +179,7 @@
       <div v-else-if="submissions.length === 0" class="no-data">
         No submissions found with the current filters.
       </div>
-      <div v-else>
-        <AdminSubmissionsTable
-          :items="submissions"
-          @edit="editSubmission"
-          @delete="confirmDeleteSubmission"
-        />
-      </div>
+      <SubmissionsTable v-else :submissions="submissions" @review="editSubmission" @delete="confirmDeleteSubmission" />
       
       <!-- Edit Submission Modal -->
       <div v-if="showEditSubmissionForm" class="modal">
@@ -282,55 +263,43 @@
       </div>
     </div>
 
-    <!-- Project Submissions Tab -->
-    <div v-if="activeTab === 'projectSubmissions'" class="tab-content">
-      <AdminProjectSubmissions
-        :items="projectSubmissions"
-        :loading="loading.projectSubmissions"
-        :error="error.projectSubmissions"
-      />
-    </div>
-
   </div>
 </template>
 
 <script>
-import { apiGet, apiPost, apiPut, apiDelete, withAuthHeaders } from '../services/apiClient'
-import { formatDate as formatDateUtil } from '../utils/date'
-import AdminProjectSubmissions from './admin/AdminProjectSubmissions.vue'
-import AdminWeeksTable from './admin/AdminWeeksTable.vue'
-import AdminSubmissionsTable from './admin/AdminSubmissionsTable.vue'
+import { api } from '../api'
+import { useAuth } from '../composables/useAuth'
+import WeeksTable from './admin/WeeksTable.vue'
+import SubmissionsTable from './admin/SubmissionsTable.vue'
 
 export default {
   name: 'AdminDashboard',
-  components: { AdminProjectSubmissions, AdminWeeksTable, AdminSubmissionsTable },
+  components: { WeeksTable, SubmissionsTable },
+  
   data() {
     return {
       activeTab: 'weeks',
       weeks: [],
-      categories: [],
+      classes: [],
       submissions: [],
-      projectSubmissions: [],
       filters: {
-        category_id: '',
+        class_id: '',
         week_id: '',
         status: ''
       },
       loading: {
         weeks: false,
-        categories: false,
+        classes: false,
         submissions: false,
         updateWeek: false,
         addWeek: false,
         updateSubmission: false,
         deleteSubmission: false,
-        projectSubmissions: false
       },
       error: {
         weeks: null,
-        categories: null,
+        classes: null,
         submissions: null,
-        projectSubmissions: null
       },
       showEditWeekForm: false,
       showAddWeekForm: false,
@@ -340,7 +309,7 @@ export default {
       editingSubmission: null,
       deletingSubmission: null,
       newWeek: {
-        category_id: '',
+        class_id: '',
         week_number: 1,
         title: '',
         display_name: '',
@@ -350,55 +319,39 @@ export default {
       }
     }
   },
-  watch: {
-    activeTab(newTab) {
-      if (newTab === 'projectSubmissions' && this.projectSubmissions.length === 0) {
-        this.fetchProjectSubmissions();
-      }
-    }
-  },
   mounted() {
-    this.fetchCategories()
+    this.fetchClasses()
     this.fetchWeeks()
     this.fetchSubmissions()
   },
   methods: {
     // Authentication
-    getAuthHeaders() {
-      const token = localStorage.getItem('auth_token')
-      return {
-        'Content-Type': 'application/json',
-        ...withAuthHeaders(token)
-      }
-    },
     logout() {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('user')
+      const { logout } = useAuth()
+      logout()
       this.$emit('logout')
     },
     
     // Data fetching
-    async fetchCategories() {
-      this.loading.categories = true
-      this.error.categories = null
-      
+    async fetchClasses() {
+      this.loading.classes = true
+      this.error.classes = null
       try {
-        const data = await apiGet('/api/categories', { headers: this.getAuthHeaders() })
-        this.categories = data
+        const data = await api.getCategories()
+        this.classes = data
       } catch (err) {
-        this.error.categories = err.message
+        this.error.classes = err.message
         console.error('Error fetching categories:', err)
       } finally {
-        this.loading.categories = false
+        this.loading.classes = false
       }
     },
     
     async fetchWeeks() {
       this.loading.weeks = true
       this.error.weeks = null
-      
       try {
-        const data = await apiGet('/api/admin/weeks', { headers: this.getAuthHeaders() })
+        const data = await api.getAdminWeeks()
         this.weeks = data.weeks
       } catch (err) {
         this.error.weeks = err.message
@@ -408,35 +361,16 @@ export default {
       }
     },
     
-    async fetchProjectSubmissions() {
-      this.loading.projectSubmissions = true;
-      this.error.projectSubmissions = null;
-      try {
-        this.projectSubmissions = await apiGet('/api/project-submissions', { headers: this.getAuthHeaders() })
-      } catch (err) {
-        this.error.projectSubmissions = err.message;
-        console.error('Error fetching project submissions:', err);
-      } finally {
-        this.loading.projectSubmissions = false;
-      }
-    },
-
     async fetchSubmissions() {
       this.loading.submissions = true
       this.error.submissions = null
-      
       try {
-        // Build query string from filters
-        const queryParams = new URLSearchParams()
-        if (this.filters.category_id) queryParams.append('category_id', this.filters.category_id)
-        if (this.filters.week_id) queryParams.append('week_id', this.filters.week_id)
-        if (this.filters.status) queryParams.append('status', this.filters.status)
-        
-        // Legacy compatibility: also include class_id for older backends
-        if (this.filters.category_id && !queryParams.has('class_id')) {
-          queryParams.append('class_id', this.filters.category_id)
+        const params = {
+          ...(this.filters.class_id ? { class_id: this.filters.class_id } : {}),
+          ...(this.filters.week_id ? { week_id: this.filters.week_id } : {}),
+          ...(this.filters.status ? { status: this.filters.status } : {}),
         }
-        const data = await apiGet(`/api/admin/submissions?${queryParams.toString()}`, { headers: this.getAuthHeaders() })
+        const data = await api.getAdminSubmissions(params)
         this.submissions = data.submissions
       } catch (err) {
         this.error.submissions = err.message
@@ -447,7 +381,9 @@ export default {
     },
     
     formatDate(isoString) {
-      return formatDateUtil(isoString)
+      if (!isoString) return 'N/A';
+      const date = new Date(isoString);
+      return date.toLocaleString();
     },
 
     // Week management
@@ -468,24 +404,14 @@ export default {
     
     async updateWeek() {
       this.loading.updateWeek = true
-      
       try {
-        // Convert local date back to ISO format
-        const weekData = {
-          ...this.editingWeek
-        }
-        
+        const weekData = { ...this.editingWeek }
         if (weekData.due_date_local) {
           weekData.due_date = new Date(weekData.due_date_local).toISOString()
         }
-        
-        // Remove fields that shouldn't be sent
         delete weekData.due_date_local
         delete weekData.class_name
-        
-        await apiPut(`/api/admin/weeks/${this.editingWeek.id}`, weekData, { headers: this.getAuthHeaders() })
-        
-        // Refresh weeks list
+        await api.updateWeek(this.editingWeek.id, weekData)
         await this.fetchWeeks()
         this.showEditWeekForm = false
       } catch (err) {
@@ -498,37 +424,16 @@ export default {
     
     async addWeek() {
       this.loading.addWeek = true
-      
       try {
-        // Convert local date to ISO format
-        const weekData = {
-          ...this.newWeek
-        }
-        
+        const weekData = { ...this.newWeek }
         if (weekData.due_date_local) {
           weekData.due_date = new Date(weekData.due_date_local).toISOString()
         }
-        
-        // Remove fields that shouldn't be sent
         delete weekData.due_date_local
-        
-        try {
-          await apiPost(`/api/admin/categories/${this.newWeek.category_id}/weeks`, weekData, { headers: this.getAuthHeaders() })
-        } catch (e) {
-          // Fallback to legacy route if categories endpoint not found
-          if (e && e.message && e.message.toLowerCase().includes('404')) {
-            await apiPost(`/api/admin/classes/${this.newWeek.category_id}/weeks`, weekData, { headers: this.getAuthHeaders() })
-          } else {
-            throw e
-          }
-        }
-        
-        // Refresh weeks list
+        await api.createWeek(this.newWeek.class_id, weekData)
         await this.fetchWeeks()
-        
-        // Reset form and close modal
         this.newWeek = {
-          category_id: '',
+          class_id: '',
           week_number: 1,
           title: '',
           display_name: '',
@@ -553,16 +458,12 @@ export default {
     
     async updateSubmission() {
       this.loading.updateSubmission = true
-      
       try {
         const submissionData = {
           status: this.editingSubmission.status,
-          admin_comment: this.editingSubmission.admin_comment
+          admin_comment: this.editingSubmission.admin_comment,
         }
-        
-        await apiPut(`/api/admin/submissions/${this.editingSubmission.id}`, submissionData, { headers: this.getAuthHeaders() })
-        
-        // Refresh submissions list
+        await api.updateSubmission(this.editingSubmission.id, submissionData)
         await this.fetchSubmissions()
         this.showEditSubmissionForm = false
       } catch (err) {
@@ -580,11 +481,8 @@ export default {
     
     async deleteSubmission() {
       this.loading.deleteSubmission = true
-      
       try {
-        await apiDelete(`/api/admin/submissions/${this.deletingSubmission.id}`, { headers: this.getAuthHeaders() })
-        
-        // Refresh submissions list
+        await api.deleteSubmission(this.deletingSubmission.id)
         await this.fetchSubmissions()
         this.showDeleteConfirmation = false
       } catch (err) {
@@ -647,11 +545,13 @@ export default {
   cursor: pointer;
   font-size: 16px;
   border-bottom: 3px solid transparent;
+  color: #555;
 }
 
 .tab-btn.active {
   border-bottom-color: #4CAF50;
   font-weight: bold;
+  color: #000;
 }
 
 .section-header {

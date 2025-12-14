@@ -1,168 +1,16 @@
 <script>
-import CategoryList from './components/CategoryList.vue'
-import WeekView from './components/WeekView.vue'
-import LoginForm from './components/LoginForm.vue'
-import AdminDashboard from './components/AdminDashboard.vue'
-import SubmissionForm from './components/SubmissionForm.vue'
-
 export default {
   name: 'App',
-  components: {
-    CategoryList,
-    WeekView,
-    LoginForm,
-    AdminDashboard,
-    SubmissionForm
-  },
-  data() {
-    return {
-      currentView: 'categories',
-      selectedCategory: null,
-      selectedWeek: null,
-      // Mock student ID for demo purposes
-      // In a real app, this would come from authentication
-      studentId: 1,
-      // Admin authentication
-      isAdmin: false,
-      adminView: 'login',  // 'login' or 'dashboard'
-      showAdminButton: true,
-
-    }
-  },
-  created() {
-    // Check if user is already logged in as admin
-    const token = localStorage.getItem('auth_token')
-    const user = localStorage.getItem('user')
-    
-    if (token && user) {
-      try {
-        const userData = JSON.parse(user)
-        if (userData.is_admin) {
-          this.isAdmin = true
-          this.adminView = 'dashboard'
-        }
-      } catch (e) {
-        // Invalid user data, clear storage
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('user')
-      }
-    }
-  },
-  methods: {
-    handleProjectSubmitted(project) {
-      // This will be wired up to an API call
-      console.log('Project submitted:', project);
-      alert('Project submitted successfully!');
-      this.currentView = 'categories'; // Or wherever you want to redirect
-    },
-    handleCategorySelected(categoryItem) {
-      this.selectedCategory = categoryItem
-      this.currentView = 'weeks'
-      this.selectedWeek = 1 // Default to first week
-    },
-    goBackToCategories() {
-      this.currentView = 'categories'
-      this.selectedCategory = null
-      this.selectedWeek = null
-    },
-    selectWeek(weekNumber) {
-      this.selectedWeek = weekNumber
-    },
-    // Admin methods
-    toggleAdminView() {
-      this.isAdmin = !this.isAdmin
-      this.adminView = 'login'
-    },
-    handleLoginSuccess(user) {
-      this.adminView = 'dashboard'
-    },
-    handleLogout() {
-      this.isAdmin = false
-      this.adminView = 'login'
-      this.currentView = 'categories'
-    },
-    goToStudentView() {
-      this.isAdmin = false
-      this.currentView = 'categories'
-    }
-  }
 }
 </script>
 
 <template>
   <div class="app">
-    <!-- Admin View -->
-    <div v-if="isAdmin" class="admin-view">
-      <LoginForm 
-        v-if="adminView === 'login'" 
-        @login-success="handleLoginSuccess"
-        @go-to-student-view="goToStudentView"
-      />
-      <AdminDashboard 
-        v-else 
-        @logout="handleLogout"
-      />
-    </div>
-    
-    <!-- Student View -->
-    <div v-else class="student-view">
-      <header>
-        <div class="logo-container">
-          <img src="./assets/vue.svg" class="logo" alt="Vue logo" />
-                    <h1>SparkRepo</h1>
-        </div>
-        <div class="header-right">
-          <p class="tagline">Upload and share your Scratch projects</p>
-          <button v-if="showAdminButton" class="admin-btn" @click="toggleAdminView">Admin</button>
-          <button @click="currentView = 'submission'">Submission Form</button>
-        </div>
-      </header>
-
-      <main>
-        <!-- Category Selection View -->
-        <div v-if="currentView === 'submission'">
-          <SubmissionForm @project-submitted="handleProjectSubmitted" />
-        </div>
-        <div v-else-if="currentView === 'categories'">
-          <CategoryList 
-            @category-selected="handleCategorySelected"
-          />
-        </div>
-        
-        <!-- Week View with Weeks Navigation -->
-        <div v-else-if="currentView === 'weeks'" class="week-container">
-          <div class="week-sidebar">
-            <h3>Weeks</h3>
-            <ul class="week-list">
-              <li 
-                v-for="weekNum in 10" 
-                :key="weekNum"
-                :class="{ active: selectedWeek === weekNum }"
-                @click="selectWeek(weekNum)"
-              >
-                Week {{ weekNum }}
-              </li>
-            </ul>
-          </div>
-          
-          <div class="week-content">
-            <WeekView 
-              :category-id="selectedCategory.id"
-              :week-number="selectedWeek"
-              :category-info="selectedCategory"
-              :student-id="studentId"
-              @go-back="goBackToCategories"
-            />
-          </div>
-        </div>
-      </main>
-      
-      <footer>
-                <p>&copy; 2025 SparkRepo - A classroom link repository for Scratch projects</p>
-      </footer>
-    </div>
+    <ErrorBoundary>
+      <router-view />
+    </ErrorBoundary>
   </div>
-</template>
+ </template>
 
 <style>
 /* Global styles */
@@ -296,7 +144,9 @@ footer {
   border-radius: 4px;
   cursor: pointer;
   margin-bottom: 0.5rem;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
+  text-align: center;
+  font-weight: 500;
 }
 
 .week-list li:hover {
