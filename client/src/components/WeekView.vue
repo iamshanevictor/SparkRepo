@@ -372,9 +372,10 @@ onMounted(() => {
 }
 
 .submission-card {
-  background: linear-gradient(135deg, var(--primary-green), #2ecc71);
-  color: var(--text-white);
+  background: linear-gradient(135deg, #fff, #f8f9ff);
+  color: var(--text-primary);
   text-align: center;
+  border: 3px solid var(--primary-green);
 }
 
 .submission-header {
@@ -387,38 +388,41 @@ onMounted(() => {
 .submission-icon {
   font-size: 3rem;
   flex-shrink: 0;
+  color: var(--primary-green);
 }
 
 .submission-header h4 {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+  color: var(--text-primary);
+  text-shadow: none;
 }
 
 .submission-header p {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-secondary);
   font-size: 1rem;
 }
 
 .submit-btn {
   font-size: 1.2rem;
   padding: 1rem 2rem;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--primary-green);
   color: var(--text-white);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
+  border: 2px solid var(--primary-green);
 }
 
 .submit-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: #1e8e3e;
+  border-color: #1e8e3e;
   transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(30, 142, 62, 0.4);
 }
 
 .existing-submission-card {
-  background: linear-gradient(135deg, var(--primary-orange), #f39c12);
-  color: var(--text-white);
+  background: linear-gradient(135deg, #fff, #fff8e1);
+  color: var(--text-primary);
+  border: 3px solid var(--primary-orange);
 }
 
 .submission-status {
@@ -431,26 +435,28 @@ onMounted(() => {
 .status-icon {
   font-size: 3rem;
   flex-shrink: 0;
+  color: var(--primary-green);
 }
 
 .submission-status h4 {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+  color: var(--text-primary);
+  text-shadow: none;
 }
 
 .submitted-date {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
 .submission-details {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(248, 249, 255, 0.8);
   border-radius: var(--radius-medium);
   padding: 1.5rem;
   margin-bottom: 2rem;
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(116, 75, 162, 0.2);
 }
 
 .submission-info {
@@ -462,40 +468,44 @@ onMounted(() => {
 
 .submission-info strong {
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .project-link {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--primary-blue);
   text-decoration: none;
   word-break: break-all;
   transition: all 0.3s ease;
 }
 
 .project-link:hover {
-  color: white;
+  color: var(--primary-purple);
   text-decoration: underline;
 }
 
 .comment {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(116, 75, 162, 0.1);
   padding: 1rem;
   border-radius: var(--radius-small);
   font-style: italic;
   margin-top: 0.5rem;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--primary-purple);
 }
 
 .update-btn {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--primary-orange);
   color: var(--text-white);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid var(--primary-orange);
   font-size: 1.1rem;
   padding: 0.8rem 1.5rem;
 }
 
 .update-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: #e67e22;
+  border-color: #e67e22;
   transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(230, 126, 34, 0.4);
 }
 
 @media (max-width: 768px) {
