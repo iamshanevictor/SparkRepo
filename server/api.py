@@ -1,5 +1,5 @@
 """Public API blueprint for SparkRepo with Firebase Firestore."""
-from flask import request, jsonify, Blueprint
+from flask import request, jsonify, Blueprint, make_response
 from .models import Category, Week, Submission
 import logging
 
@@ -71,14 +71,24 @@ def get_week_assignment(category_id, week_number):
 @api.route('/categories/<string:category_id>/weeks/<int:week_number>/submissions', methods=['POST', 'OPTIONS'])
 def create_submission_by_week_number(category_id, week_number):
     """Create a new submission for a specific week by category and week number."""
+    
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = make_response('', 200)
+        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Max-Age'] = '86400'
+        return response
+    
     try:
         # Find the week
         week = Week.get_by_category_and_number(category_id, week_number)
         if not week:
             return jsonify({'error': 'Week not found'}), 404
         
-        # Get submission data
-        data = request.get_json()
+        # Get submission data - only try to get JSON for POST requests
+        data = request.get_json() if request.method == 'POST' else {}
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
