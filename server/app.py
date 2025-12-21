@@ -60,26 +60,11 @@ def create_app(test_config=None):
 
     # Setup CORS
     cors_origins = app.config.get('CORS_ORIGINS', 'http://localhost:5173')
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": cors_origins.split(','),
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
-        },
-        r"/auth/*": {
-            "origins": cors_origins.split(','),
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
-        },
-        r"/admin/*": {
-            "origins": cors_origins.split(','),
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
-        }
-    })
+    CORS(app, 
+         origins=cors_origins.split(','),
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+         allow_headers=['Content-Type', 'Authorization'],
+         supports_credentials=True)
     logger.info(f"CORS configured for origins: {cors_origins}")
 
     # Register blueprints
