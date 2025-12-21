@@ -1,10 +1,10 @@
-# 🚀 SparkRepo Server - Quick Start Guide
+# 🚀 SparkRepo Server - Quick Start Guide (Firebase)
 
 ## ✅ Pre-requisites Checklist
 
 - [x] Python 3.8+ installed
 - [x] Dependencies installed: `pip install -r requirements.txt`
-- [x] Supabase project created
+- [x] Firebase project and Firestore enabled
 - [x] Environment variables configured in `.env`
 
 ## 🏃 Get Started in 3 Steps
@@ -14,10 +14,10 @@
 # Copy the example configuration
 cp .env.example .env
 
-# Edit .env with your Supabase credentials:
-# SUPABASE_URL=https://your-project.supabase.co
-# SUPABASE_KEY=your-public-anon-key
-# SUPABASE_SERVICE_KEY=your-service-role-key
+# Edit .env with your Firebase settings:
+# FIREBASE_SERVICE_ACCOUNT_PATH=serviceAccountKey.json
+# FLASK_ENV=development
+# FLASK_APP=app:create_app
 ```
 
 ### Step 2: Install Dependencies
@@ -28,11 +28,8 @@ pip install -r requirements.txt
 
 ### Step 3: Start the Server
 ```bash
-# Option 1: Using Python directly
-python app.py
-
-# Option 2: Using PowerShell script
-.\run_backend.ps1
+# Start via Flask CLI
+flask run
 ```
 
 ## ✅ Verify It's Working
@@ -70,8 +67,8 @@ curl -X POST http://localhost:5000/auth/login \
 ### Issue: "SyntaxError: unexpected character..."
 **Solution**: All syntax errors have been fixed. Re-install from latest code.
 
-### Issue: "SUPABASE_URL not set"
-**Solution**: Make sure `.env` file exists and has all required variables.
+### Issue: "Firebase credentials not found"
+**Solution**: Make sure `.env` file exists and has `FIREBASE_SERVICE_ACCOUNT_PATH` or `FIREBASE_SERVICE_ACCOUNT_KEY`.
 ```bash
 cp .env.example .env
 # Then edit .env with your credentials
@@ -97,9 +94,8 @@ server/
 ├── auth.py                # Authentication routes
 ├── admin.py               # Admin routes
 ├── config.py              # Configuration classes
-├── db_service.py          # Database service layer
-├── supabase_client.py     # Supabase client
-├── models.py              # Database schema reference
+├── firebase_client.py     # Firebase Admin SDK initialization
+├── models.py              # Firestore data access helpers
 ├── utils/
 │   ├── logger.py          # Logging configuration
 │   ├── exceptions.py      # Custom exceptions
@@ -107,8 +103,7 @@ server/
 │   └── errors.py          # Error response helpers
 ├── requirements.txt       # Python dependencies
 ├── .env.example           # Example environment config
-├── init_db.py             # Database initialization helper
-└── run_backend.ps1        # PowerShell startup script
+└── (no PowerShell scripts)
 ```
 
 ## 🔐 Security Tips

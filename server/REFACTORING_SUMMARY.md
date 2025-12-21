@@ -174,9 +174,8 @@ python init_db.py
 
 ### 4. **Run the Server**
 ```bash
-python app.py
-# or use the PowerShell script
-.\run_backend.ps1
+# From the server directory:
+flask run
 ```
 
 ### 5. **Test the API**

@@ -65,13 +65,18 @@ You need to run both the backend and frontend servers simultaneously in two sepa
 
 **Terminal 1: Run the Backend (Flask)**
 
-1.  Make sure you are in the `server` directory.
-2.  Execute the run script:
+1.  Make sure you are in the `server` directory:
     ```powershell
-    .\run_backend.ps1
+    cd server
     ```
-    This script will automatically create a Python virtual environment, install dependencies, and start the server.
-
+2.  Ensure dependencies are installed (first run only):
+    ```powershell
+    python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.txt
+    ```
+3.  Start the backend using Flask CLI:
+    ```powershell
+    flask run
+    ```
     The backend API will be running at `http://localhost:5000`.
 
 **Terminal 2: Run the Frontend (Vue)**
@@ -80,26 +85,18 @@ You need to run both the backend and frontend servers simultaneously in two sepa
     ```sh
     cd client
     ```
-2.  Execute the run script:
+2.  Install dependencies and start Vite dev server:
     ```powershell
-    .\run_frontend.ps1
+    npm install
+    npm run dev
     ```
-    This script will install Node.js dependencies and start the Vite development server.
 
     The frontend application will be available at `http://localhost:5173`.
 
-### What the Run Scripts Do
+### Notes
 
--   `server/run_backend.ps1`:
-    -   Checks for a `.venv` virtual environment and creates one if it doesn't exist.
-    -   Activates the virtual environment.
-    -   Installs Python packages from `requirements.txt`.
-    -       -   Initializes the SQLite database (`sparkrepo.db`) and seeds it with sample data on the first run.
-    -   Starts the Flask development server.
-
--   `client/run_frontend.ps1`:
-    -   Checks for a `node_modules` directory and runs `npm install` if it doesn't exist.
-    -   Starts the Vite development server with Hot-Module-Reloading (HMR) enabled.
+- Backend uses Flask CLI. Ensure `FLASK_APP=app:create_app` is set (already in `server/.env`).
+- Frontend uses Vite. Use `npm run dev` in `client`.
 
 
 

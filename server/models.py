@@ -1,191 +1,301 @@
-from flask_sqlalchemy import SQLAlchemy
+"""Firestore data models and helper functions for SparkRepo."""
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from firebase_client import get_firestore_client
 
-db = SQLAlchemy()
+# Collection names
+CATEGORIES_COLLECTION = 'categories'
+USERS_COLLECTION = 'users'
+WEEKS_COLLECTION = 'weeks'
+SUBMISSIONS_COLLECTION = 'submissions'
 
-class Category(db.Model):
+
+class Category:
     """Category model representing a project type, e.g., Scratch or Canva."""
-    __tablename__ = 'categories'
     
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
-    description = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    weeks = db.relationship('Week', back_populates='category', cascade='all, delete-orphan')
-    
-    def __repr__(self):
-        return f'<Category {self.name}>'
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'description': self.description
+    @staticmethod
+    def create(name, description=None):
+        """Create a new category."""
+        db = get_firestore_client()
+        category_data = {
+            'name': name,
+            'description': description,
+            'created_at': datetime.utcnow()
         }
+        doc_ref = db.collection(CATEGORIES_COLLECTION).document()
+        doc_ref.set(category_data)
+        return {'id': doc_ref.id, **category_data}
+    
+    @staticmethod
+    def get_all():
+        """Get all categories."""
+        db = get_firestore_client()
+        categories = []
+        docs = db.collection(CATEGORIES_COLLECTION).order_by('name').stream()
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            categories.append(data)
+        return categories
+    
+    @staticmethod
+    def get_by_id(category_id):
+        """Get category by ID."""
+        db = get_firestore_client()
+        doc = db.collection(CATEGORIES_COLLECTION).document(category_id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            return data
+        return None
+    
+    @staticmethod
+    def update(category_id, name=None, description=None):
+        """Update a category."""
+        db = get_firestore_client()
+        doc_ref = db.collection(CATEGORIES_COLLECTION).document(category_id)
+        update_data = {}
+        if name is not None:
+            update_data['name'] = name
+        if description is not None:
+            update_data['description'] = description
+        doc_ref.update(update_data)
+        return Category.get_by_id(category_id)
+    
+    @staticmethod
+    def delete(category_id):
+        """Delete a category and all its weeks."""
+        db = get_firestore_client()
+        # Delete all weeks for this category
+        weeks = db.collection(WEEKS_COLLECTION).where('category_id', '==', category_id).stream()
+        for week in weeks:
+            Week.delete(week.id)
+        # Delete category
+        db.collection(CATEGORIES_COLLECTION).document(category_id).delete()
 
 
-class User(db.Model):
-    """User model for authentication, including admin users."""
-    __tablename__ = 'users'
+class User:
+    """User model for authentication."""
     
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=True)
-    is_admin = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_login = db.Column(db.DateTime, nullable=True)
-    
-    def __repr__(self):
-        return f'<User {self.username}>'
-    
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-    
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email,
-            'is_admin': self.is_admin,
-            'created_at': self.created_at.isoformat(),
-            'last_login': self.last_login.isoformat() if self.last_login else None
+    @staticmethod
+    def create(username, password, email=None, is_admin=False):
+        """Create a new user."""
+        db = get_firestore_client()
+        user_data = {
+            'username': username,
+            'password_hash': generate_password_hash(password),
+            'email': email,
+            'is_admin': is_admin,
+            'created_at': datetime.utcnow()
         }
+        doc_ref = db.collection(USERS_COLLECTION).document()
+        doc_ref.set(user_data)
+        return {'id': doc_ref.id, 'username': username, 'email': email, 'is_admin': is_admin}
+    
+    @staticmethod
+    def get_by_username(username):
+        """Get user by username."""
+        db = get_firestore_client()
+        users = db.collection(USERS_COLLECTION).where('username', '==', username).limit(1).stream()
+        for user in users:
+            data = user.to_dict()
+            data['id'] = user.id
+            return data
+        return None
+    
+    @staticmethod
+    def get_by_id(user_id):
+        """Get user by ID."""
+        db = get_firestore_client()
+        doc = db.collection(USERS_COLLECTION).document(user_id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            return data
+        return None
+    
+    @staticmethod
+    def check_password(user_data, password):
+        """Check if password matches hash."""
+        return check_password_hash(user_data.get('password_hash', ''), password)
+    
+    @staticmethod
+    def update_password(user_id, new_password):
+        """Update user password."""
+        db = get_firestore_client()
+        doc_ref = db.collection(USERS_COLLECTION).document(user_id)
+        doc_ref.update({'password_hash': generate_password_hash(new_password)})
 
 
-class Week(db.Model):
+class Week:
     """Week model representing a weekly assignment."""
-    __tablename__ = 'weeks'
     
-    id = db.Column(db.Integer, primary_key=True)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
-    week_number = db.Column(db.Integer, nullable=False)
-    title = db.Column(db.String(100), nullable=False)
-    display_name = db.Column(db.String(100), nullable=True)  # Added for flexible naming
-    description = db.Column(db.Text, nullable=True)
-    assignment_url = db.Column(db.String(255), nullable=True)
-    due_date = db.Column(db.DateTime, nullable=True)
-    is_active = db.Column(db.Boolean, default=True)  # Added to control visibility
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    category = db.relationship('Category', back_populates='weeks')
-    submissions = db.relationship('Submission', back_populates='week', cascade='all, delete-orphan')
-    
-    __table_args__ = (
-        db.UniqueConstraint('category_id', 'week_number', name='unique_category_week'),
-    )
-    
-    def __repr__(self):
-        return f'<Week {self.week_number} for Category {self.category_id}>'
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'category_id': self.category_id,
-            'week_number': self.week_number,
-            'title': self.title,
-            'display_name': self.display_name or self.title,
-            'description': self.description,
-            'assignment_url': self.assignment_url,
-            'due_date': self.due_date.isoformat() if self.due_date else None,
-            'is_active': self.is_active,
-            'last_modified': self.last_modified.isoformat()
+    @staticmethod
+    def create(category_id, week_number, title, display_name=None, description=None, 
+               assignment_url=None, due_date=None, is_active=True):
+        """Create a new week."""
+        db = get_firestore_client()
+        week_data = {
+            'category_id': category_id,
+            'week_number': week_number,
+            'title': title,
+            'display_name': display_name,
+            'description': description,
+            'assignment_url': assignment_url,
+            'due_date': due_date,
+            'is_active': is_active,
+            'created_at': datetime.utcnow()
         }
+        doc_ref = db.collection(WEEKS_COLLECTION).document()
+        doc_ref.set(week_data)
+        return {'id': doc_ref.id, **week_data}
+    
+    @staticmethod
+    def get_all():
+        """Get all weeks."""
+        db = get_firestore_client()
+        weeks = []
+        docs = db.collection(WEEKS_COLLECTION).order_by('category_id').order_by('week_number').stream()
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            weeks.append(data)
+        return weeks
+    
+    @staticmethod
+    def get_by_category(category_id):
+        """Get all weeks for a category."""
+        db = get_firestore_client()
+        weeks = []
+        docs = db.collection(WEEKS_COLLECTION).where('category_id', '==', category_id).order_by('week_number').stream()
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            weeks.append(data)
+        return weeks
+    
+    @staticmethod
+    def get_by_id(week_id):
+        """Get week by ID."""
+        db = get_firestore_client()
+        doc = db.collection(WEEKS_COLLECTION).document(week_id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            return data
+        return None
+    
+    @staticmethod
+    def get_by_category_and_number(category_id, week_number):
+        """Get week by category and week number."""
+        db = get_firestore_client()
+        weeks = db.collection(WEEKS_COLLECTION)\
+            .where('category_id', '==', category_id)\
+            .where('week_number', '==', week_number)\
+            .limit(1).stream()
+        for week in weeks:
+            data = week.to_dict()
+            data['id'] = week.id
+            return data
+        return None
+    
+    @staticmethod
+    def update(week_id, **kwargs):
+        """Update a week."""
+        db = get_firestore_client()
+        doc_ref = db.collection(WEEKS_COLLECTION).document(week_id)
+        update_data = {k: v for k, v in kwargs.items() if v is not None}
+        if update_data:
+            doc_ref.update(update_data)
+        return Week.get_by_id(week_id)
+    
+    @staticmethod
+    def delete(week_id):
+        """Delete a week and all its submissions."""
+        db = get_firestore_client()
+        # Delete all submissions for this week
+        submissions = db.collection(SUBMISSIONS_COLLECTION).where('week_id', '==', week_id).stream()
+        for submission in submissions:
+            submission.reference.delete()
+        # Delete week
+        db.collection(WEEKS_COLLECTION).document(week_id).delete()
 
 
-class Student(db.Model):
-    """Student model representing a student user."""
-    __tablename__ = 'students'
+class Submission:
+    """Submission model for student work."""
     
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    submissions = db.relationship('Submission', back_populates='student', cascade='all, delete-orphan')
-    
-    def __repr__(self):
-        return f'<Student {self.name}>'
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email': self.email
+    @staticmethod
+    def create(week_id, student_name, project_url, status='pending'):
+        """Create a new submission."""
+        db = get_firestore_client()
+        submission_data = {
+            'week_id': week_id,
+            'student_name': student_name,
+            'project_url': project_url,
+            'status': status,
+            'admin_comment': None,
+            'submitted_at': datetime.utcnow(),
+            'modified_by': None
         }
-
-
-class Submission(db.Model):
-    """Submission model representing a student's project link submission."""
-    __tablename__ = 'submissions'
+        doc_ref = db.collection(SUBMISSIONS_COLLECTION).document()
+        doc_ref.set(submission_data)
+        return {'id': doc_ref.id, **submission_data}
     
-    id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
-    week_id = db.Column(db.Integer, db.ForeignKey('weeks.id'), nullable=False)
-    project_type = db.Column(db.String(50), nullable=False, default='scratch')  # 'scratch' or 'canva'
-    project_url = db.Column(db.String(255), nullable=False)
-    comment = db.Column(db.Text, nullable=True)
-    admin_comment = db.Column(db.Text, nullable=True)  # Added for admin feedback
-    status = db.Column(db.String(20), default='submitted')  # e.g., 'submitted', 'approved', 'rejected'
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    modified_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Track who modified it
+    @staticmethod
+    def get_all():
+        """Get all submissions."""
+        db = get_firestore_client()
+        submissions = []
+        docs = db.collection(SUBMISSIONS_COLLECTION).order_by('submitted_at', direction='DESCENDING').stream()
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            submissions.append(data)
+        return submissions
     
-    # Relationships
-    student = db.relationship('Student', back_populates='submissions')
-    week = db.relationship('Week', back_populates='submissions')
-    admin = db.relationship('User', foreign_keys=[modified_by], backref='modified_submissions')
+    @staticmethod
+    def get_by_week(week_id):
+        """Get all submissions for a week."""
+        db = get_firestore_client()
+        submissions = []
+        docs = db.collection(SUBMISSIONS_COLLECTION)\
+            .where('week_id', '==', week_id)\
+            .order_by('submitted_at', direction='DESCENDING').stream()
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            submissions.append(data)
+        return submissions
     
-    __table_args__ = (
-        db.UniqueConstraint('student_id', 'week_id', name='unique_student_week_submission'),
-    )
+    @staticmethod
+    def get_by_id(submission_id):
+        """Get submission by ID."""
+        db = get_firestore_client()
+        doc = db.collection(SUBMISSIONS_COLLECTION).document(submission_id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            return data
+        return None
     
-    def __repr__(self):
-        return f'<Submission by Student {self.student_id} for Week {self.week.week_number}>'
+    @staticmethod
+    def update(submission_id, status=None, admin_comment=None, modified_by=None):
+        """Update a submission."""
+        db = get_firestore_client()
+        doc_ref = db.collection(SUBMISSIONS_COLLECTION).document(submission_id)
+        update_data = {}
+        if status is not None:
+            update_data['status'] = status
+        if admin_comment is not None:
+            update_data['admin_comment'] = admin_comment
+        if modified_by is not None:
+            update_data['modified_by'] = modified_by
+        if update_data:
+            doc_ref.update(update_data)
+        return Submission.get_by_id(submission_id)
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'student_id': self.student_id,
-            'student_name': self.student.name,
-            'week_id': self.week_id,
-            'week_number': self.week.week_number,
-            'week_title': self.week.display_name or self.week.title,
-            'project_type': self.project_type,
-            'project_url': self.project_url,
-            'comment': self.comment,
-            'admin_comment': self.admin_comment,
-            'status': self.status,
-            'submitted_at': self.submitted_at.isoformat(),
-            'last_modified': self.last_modified.isoformat()
-        }
-
-
-class ProjectSubmission(db.Model):
-    """A simple model for project submissions."""
-    __tablename__ = 'project_submissions'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    project_link = db.Column(db.String(255), nullable=False)
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<ProjectSubmission {self.name}>'
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'project_link': self.project_link,
-            'submitted_at': self.submitted_at.isoformat()
-        }
+    @staticmethod
+    def delete(submission_id):
+        """Delete a submission."""
+        db = get_firestore_client()
+        db.collection(SUBMISSIONS_COLLECTION).document(submission_id).delete()

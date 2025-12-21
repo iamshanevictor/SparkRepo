@@ -18,12 +18,6 @@ Key variables:
 
 Dev server (Vite + HMR):
 
-```powershell
-./run_frontend.ps1
-```
-
-Or using npm directly:
-
 ```bash
 npm install
 npm run dev

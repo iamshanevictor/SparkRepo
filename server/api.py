@@ -1,294 +1,148 @@
-"""Public API blueprint for SparkRepo.
+"""Public API blueprint for SparkRepo with Firebase Firestore."""
+from flask import request, jsonify, Blueprint
+from models import Category, Week, Submission
+import logging
 
-Exposes endpoints for categories, weeks, student submissions, and a simple
-project submissions feed. This module focuses on unauthenticated/public routes
-and student-facing submission flows.
-"""
-
-from flask import Flask, request, jsonify, Blueprint
-from models import db, Category, Week, Student, Submission, ProjectSubmission
-from datetime import datetime
-from sqlalchemy.exc import IntegrityError
+logger = logging.getLogger(__name__)
 
 # Create a Blueprint for API routes
 api = Blueprint('api', __name__)
 
+
 # Error handling
 def handle_error(e, status_code=400):
+    logger.error(f"API error: {e}")
     return jsonify({'error': str(e)}), status_code
+
 
 # GET /categories - List all categories
 @api.route('/categories', methods=['GET'])
 def get_categories():
-    """
-    Returns a list of all available categories.
-    """
+    """Returns a list of all available categories."""
     try:
-        categories = Category.query.all()
-        return jsonify([category.to_dict() for category in categories])
+        categories = Category.get_all()
+        return jsonify({'categories': categories}), 200
     except Exception as e:
         return handle_error(e, 500)
+
 
 # GET /categories/{id} - Get a specific category
-@api.route('/categories/<int:category_id>', methods=['GET'])
+@api.route('/categories/<string:category_id>', methods=['GET'])
 def get_category(category_id):
-    """
-    Returns details for a specific category.
-    """
+    """Returns details for a specific category."""
     try:
-        category = Category.query.get_or_404(category_id)
-        return jsonify(category.to_dict())
+        category = Category.get_by_id(category_id)
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+        return jsonify(category), 200
     except Exception as e:
         return handle_error(e, 500)
+
 
 # GET /categories/{id}/weeks - List all weeks for a category
-@api.route('/categories/<int:category_id>/weeks', methods=['GET'])
+@api.route('/categories/<string:category_id>/weeks', methods=['GET'])
 def get_category_weeks(category_id):
-    """
-    Returns all weeks for a specific category.
-    """
+    """Returns all weeks for a specific category."""
     try:
-        Category.query.get_or_404(category_id)  # Check if category exists
-        weeks = Week.query.filter_by(category_id=category_id).order_by(Week.week_number).all()
-        return jsonify([week.to_dict() for week in weeks])
+        category = Category.get_by_id(category_id)
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+        
+        weeks = Week.get_by_category(category_id)
+        return jsonify({'weeks': weeks}), 200
     except Exception as e:
         return handle_error(e, 500)
+
 
 # GET /categories/{id}/weeks/{week} - Get a specific week's assignment
-@api.route('/categories/<int:category_id>/weeks/<int:week_number>', methods=['GET'])
+@api.route('/categories/<string:category_id>/weeks/<int:week_number>', methods=['GET'])
 def get_week_assignment(category_id, week_number):
-    """
-    Returns details for a specific week's assignment.
-    
-    Example response:
-    {
-        "id": 1,
-        "class_id": 1,
-        "week_number": 1,
-        "title": "Introduction to Scratch",
-        "description": "Learn the basics of Scratch programming",
-        "assignment_url": "https://scratch.mit.edu/projects/example",
-        "due_date": "2025-06-01T23:59:59",
-        "submissions": [
-            {
-                "id": 1,
-                "student_id": 1,
-                "student_name": "John Doe",
-                "project_url": "https://scratch.mit.edu/projects/123456",
-                "submitted_at": "2025-05-28T14:30:00"
-            }
-        ]
-    }
-    """
+    """Returns details for a specific week's assignment."""
     try:
-        Category.query.get_or_404(category_id)  # Check if category exists
-        week = Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
-        
-        # Get the week data
-        week_data = week.to_dict()
-        
-        # Add submissions data if requested (can be controlled by query param)
-        include_submissions = request.args.get('include_submissions', 'false').lower() == 'true'
-        if include_submissions:
-            submissions = Submission.query.filter_by(week_id=week.id).all()
-            week_data['submissions'] = [sub.to_dict() for sub in submissions]
-        
-        return jsonify(week_data)
+        week = Week.get_by_category_and_number(category_id, week_number)
+        if not week:
+            return jsonify({'error': 'Week not found'}), 404
+        return jsonify(week), 200
     except Exception as e:
         return handle_error(e, 500)
 
-# POST /categories/{id}/weeks/{week}/submissions - Submit a project link
-@api.route('/categories/<int:category_id>/weeks/<int:week_number>/submissions', methods=['POST'])
-def submit_project(category_id, week_number):
-    """
-    Submit a project link for a specific week.
-    
-    Example request:
-    {
-        "full_name": "John Doe",
-        "project_url": "https://scratch.mit.edu/projects/123456",
-        "comment": "This is my first Scratch project!"
-    }
-    
-    Example response:
-    {
-        "id": 1,
-        "student_id": 1,
-        "student_name": "John Doe",
-        "week_id": 1,
-        "week_number": 1,
-        "project_url": "https://scratch.mit.edu/projects/123456",
-        "comment": "This is my first Scratch project!",
-        "submitted_at": "2025-05-28T14:30:00"
-    }
-    """
+
+# GET /weeks/{id} - Get week by ID
+@api.route('/weeks/<string:week_id>', methods=['GET'])
+def get_week(week_id):
+    """Returns details for a specific week by ID."""
     try:
-        # Validate request data
+        week = Week.get_by_id(week_id)
+        if not week:
+            return jsonify({'error': 'Week not found'}), 404
+        return jsonify(week), 200
+    except Exception as e:
+        return handle_error(e, 500)
+
+
+# GET /weeks/{id}/submissions - Get all submissions for a week
+@api.route('/weeks/<string:week_id>/submissions', methods=['GET'])
+def get_week_submissions(week_id):
+    """Returns all submissions for a specific week."""
+    try:
+        week = Week.get_by_id(week_id)
+        if not week:
+            return jsonify({'error': 'Week not found'}), 404
+        
+        submissions = Submission.get_by_week(week_id)
+        return jsonify({'submissions': submissions}), 200
+    except Exception as e:
+        return handle_error(e, 500)
+
+
+# POST /weeks/{id}/submissions - Create a new submission
+@api.route('/weeks/<string:week_id>/submissions', methods=['POST'])
+def create_submission(week_id):
+    """Create a new submission for a week."""
+    try:
+        # Verify week exists
+        week = Week.get_by_id(week_id)
+        if not week:
+            return jsonify({'error': 'Week not found'}), 404
+        
+        # Get submission data
         data = request.get_json()
         if not data:
-            return handle_error("No data provided", 400)
+            return jsonify({'error': 'No data provided'}), 400
         
-        required_fields = ['full_name', 'project_url']
-        for field in required_fields:
-            if field not in data:
-                return handle_error(f"Missing required field: {field}", 400)
-
-        project_type = data.get('project_type', 'scratch')
-        project_url = data['project_url']
-
-        # Validate URL format based on project type
-        if project_type == 'scratch' and not project_url.startswith('https://scratch.mit.edu/projects/'):
-            return handle_error("Invalid Scratch project URL", 400)
-        elif project_type == 'canva' and not project_url.startswith('https://www.canva.com/design/'):
-            return handle_error("Invalid Canva project URL", 400)
-        elif project_type not in ['scratch', 'canva']:
-            return handle_error("Invalid project type specified", 400)
+        # Validate required fields
+        student_name = data.get('student_name')
+        project_url = data.get('project_url')
         
-        # Get the week
-        week = Week.query.filter_by(category_id=category_id, week_number=week_number).first_or_404()
+        if not student_name or not project_url:
+            return jsonify({'error': 'student_name and project_url are required'}), 400
         
-        # Find or create the student by name
-        student = Student.query.filter_by(name=data['full_name']).first()
-        if not student:
-            student = Student(name=data['full_name'])
-            db.session.add(student)
-            db.session.commit() # Commit to get the student ID
-        
-        # Check if submission already exists
-        existing_submission = Submission.query.filter_by(
-            student_id=student.id, 
-            week_id=week.id
-        ).first()
-        
-        if existing_submission:
-            # Update existing submission
-            existing_submission.project_type = data.get('project_type', 'scratch')
-            existing_submission.project_url = data['project_url']
-            existing_submission.comment = data.get('comment')
-            existing_submission.last_modified = datetime.utcnow()
-            db.session.commit()
-            return jsonify(existing_submission.to_dict())
-        else:
-            # Create new submission
-            submission = Submission(
-                student_id=student.id,
-                week_id=week.id,
-                project_type=data.get('project_type', 'scratch'),
-                project_url=data['project_url'],
-                comment=data.get('comment')
-            )
-            db.session.add(submission)
-            db.session.commit()
-            return jsonify(submission.to_dict()), 201
-            
-    except IntegrityError:
-        db.session.rollback()
-        return handle_error("Database integrity error. Submission may already exist.", 400)
-    except Exception as e:
-        db.session.rollback()
-        return handle_error(e, 500)
-
-# Additional routes for student management
-
-# GET /students - List all students
-@api.route('/students', methods=['GET'])
-def get_students():
-    """
-    Returns a list of all students.
-    
-    Example response:
-    [
-        {
-            "id": 1,
-            "name": "John Doe",
-            "email": "john@example.com"
-        }
-    ]
-    """
-    try:
-        students = Student.query.all()
-        return jsonify([student.to_dict() for student in students])
-    except Exception as e:
-        return handle_error(e, 500)
-
-# GET /students/{id}/submissions - Get all submissions for a student
-@api.route('/students/<int:student_id>/submissions', methods=['GET'])
-def get_student_submissions(student_id):
-    """
-    Returns all submissions for a specific student.
-    
-    Example response:
-    [
-        {
-            "id": 1,
-            "student_id": 1,
-            "student_name": "John Doe",
-            "week_id": 1,
-            "week_number": 1,
-            "project_url": "https://scratch.mit.edu/projects/123456",
-            "comment": "This is my first Scratch project!",
-            "submitted_at": "2025-05-28T14:30:00"
-        }
-    ]
-    """
-    try:
-        Student.query.get_or_404(student_id)  # Check if student exists
-        submissions = Submission.query.filter_by(student_id=student_id).all()
-        return jsonify([sub.to_dict() for sub in submissions])
-    except Exception as e:
-        return handle_error(e, 500)
-
-
-# --- Project Submission Routes ---
-
-# GET /project-submissions - List all project submissions
-@api.route('/project-submissions', methods=['GET'])
-def get_project_submissions():
-    """
-    Returns a list of all project submissions, ordered by most recent.
-    """
-    try:
-        submissions = ProjectSubmission.query.order_by(ProjectSubmission.submitted_at.desc()).all()
-        return jsonify([s.to_dict() for s in submissions])
-    except Exception as e:
-        return handle_error(e, 500)
-
-# POST /project-submissions - Submit a new project
-@api.route('/project-submissions', methods=['POST'])
-def submit_new_project():
-    """
-    Submits a new project with a name and a link.
-    
-    Example request:
-    {
-        "name": "Jane Doe",
-        "project_link": "https://github.com/janedoe/my-awesome-project"
-    }
-    """
-    try:
-        data = request.get_json()
-        if not data:
-            return handle_error("No data provided", 400)
-        
-        name = data.get('name')
-        project_link = data.get('project_link')
-        
-        if not name or not project_link:
-            return handle_error("Missing 'name' or 'project_link'", 400)
-        
-        new_submission = ProjectSubmission(
-            name=name,
-            project_link=project_link
+        # Create submission
+        submission = Submission.create(
+            week_id=week_id,
+            student_name=student_name,
+            project_url=project_url,
+            status='pending'
         )
         
-        db.session.add(new_submission)
-        db.session.commit()
+        logger.info(f"Submission created: {submission['id']} for week {week_id}")
+        return jsonify({
+            'message': 'Submission created successfully',
+            'submission': submission
+        }), 201
         
-        return jsonify(new_submission.to_dict()), 201
-        
-    except IntegrityError as e:
-        db.session.rollback()
-        return handle_error(f"Database integrity error: {e}", 400)
     except Exception as e:
-        db.session.rollback()
-        return handle_error(str(e), 500)
+        return handle_error(e, 500)
+
+
+# GET /submissions/{id} - Get a specific submission
+@api.route('/submissions/<string:submission_id>', methods=['GET'])
+def get_submission(submission_id):
+    """Returns details for a specific submission."""
+    try:
+        submission = Submission.get_by_id(submission_id)
+        if not submission:
+            return jsonify({'error': 'Submission not found'}), 404
+        return jsonify(submission), 200
+    except Exception as e:
+        return handle_error(e, 500)

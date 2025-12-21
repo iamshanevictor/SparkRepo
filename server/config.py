@@ -18,10 +18,9 @@ class BaseConfig:
     SECRET_KEY: str = os.getenv("FLASK_SECRET_KEY", "dev-secret-key")
     ENV: str = os.getenv("FLASK_ENV", "development")
     
-    # Supabase
-    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
-    SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
-    SUPABASE_SERVICE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_KEY")
+    # Firebase
+    FIREBASE_SERVICE_ACCOUNT_KEY: Optional[str] = os.getenv("FIREBASE_SERVICE_ACCOUNT_KEY")
+    FIREBASE_SERVICE_ACCOUNT_PATH: Optional[str] = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "serviceAccountKey.json")
     
     # JWT
     JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-jwt-secret")
@@ -38,6 +37,10 @@ class BaseConfig:
     
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    
+    # Admin defaults
+    ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin123")
 
 
 class DevelopmentConfig(BaseConfig):
@@ -46,10 +49,6 @@ class DevelopmentConfig(BaseConfig):
     DEBUG = True
     TESTING = False
     LOG_LEVEL = "DEBUG"
-    
-    # Use local Supabase for development
-    SUPABASE_URL = os.getenv("SUPABASE_URL", "http://localhost:54321")
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY", "local-dev-key")
 
 
 class ProductionConfig(BaseConfig):
@@ -57,48 +56,42 @@ class ProductionConfig(BaseConfig):
     
     DEBUG = False
     TESTING = False
-    LOG_LEVEL = "WARNING"
+    LOG_LEVEL = "INFO"
     
-    # Production MUST have these set via environment variables
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-    SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-    JWT_SECRET = os.getenv("JWT_SECRET")
+    # Note: Secrets should be provided via environment in production.
+    # Do NOT raise at import time to avoid breaking local environments.
+    # Validation is performed at app startup.
+    SECRET_KEY = os.getenv("FLASK_SECRET_KEY")
 
 
 class TestingConfig(BaseConfig):
     """Testing environment configuration."""
     
-    DEBUG = True
     TESTING = True
+    DEBUG = True
     LOG_LEVEL = "DEBUG"
+
+
+# Configuration dictionary
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestingConfig,
+    'default': DevelopmentConfig
+}
+
+
+def get_config(config_name: Optional[str] = None) -> type[BaseConfig]:
+    """Get configuration class by name.
     
-    # Use test database/keys
-    SUPABASE_URL = os.getenv("TEST_SUPABASE_URL", "http://localhost:54321")
-    SUPABASE_KEY = os.getenv("TEST_SUPABASE_KEY", "test-key")
-
-
-def get_config() -> type[BaseConfig]:
-    """Get the appropriate config class based on environment.
+    Args:
+        config_name: Name of the configuration ('development', 'production', 'testing').
+                    If None, uses FLASK_ENV environment variable.
     
     Returns:
-        BaseConfig: Configuration class for the current environment
-        
-    Raises:
-        ValueError: If environment is invalid
+        Configuration class for the specified environment.
     """
-    env = os.environ.get("FLASK_ENV", "development").lower()
+    if config_name is None:
+        config_name = os.getenv('FLASK_ENV', 'development')
     
-    config_map = {
-        "production": ProductionConfig,
-        "prod": ProductionConfig,
-        "development": DevelopmentConfig,
-        "dev": DevelopmentConfig,
-        "testing": TestingConfig,
-        "test": TestingConfig,
-    }
-    
-    if env not in config_map:
-        raise ValueError(f"Invalid FLASK_ENV: {env}. Must be one of: {', '.join(config_map.keys())}")
-    
-    return config_map[env]
+    return config.get(config_name, DevelopmentConfig)
