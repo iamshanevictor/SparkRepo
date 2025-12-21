@@ -71,8 +71,8 @@ def create_app(test_config=None):
     try:
         logger.info("Registering blueprints...")
         app.register_blueprint(api, url_prefix='/api')
-        app.register_blueprint(auth, url_prefix='/auth')
-        app.register_blueprint(admin_api, url_prefix='/admin')
+        app.register_blueprint(auth, url_prefix='/api/auth')
+        app.register_blueprint(admin_api, url_prefix='/api/admin')
         logger.info("Blueprints registered successfully")
     except Exception as e:
         logger.error(f"Error registering blueprints: {e}")

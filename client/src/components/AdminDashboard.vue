@@ -351,8 +351,8 @@ export default {
       this.loading.weeks = true
       this.error.weeks = null
       try {
-        const data = await api.getAdminWeeks()
-        this.weeks = data.weeks
+        const weeks = await api.getAdminWeeks()
+        this.weeks = weeks
       } catch (err) {
         this.error.weeks = err.message
         console.error('Error fetching weeks:', err)
@@ -370,8 +370,8 @@ export default {
           ...(this.filters.week_id ? { week_id: this.filters.week_id } : {}),
           ...(this.filters.status ? { status: this.filters.status } : {}),
         }
-        const data = await api.getAdminSubmissions(params)
-        this.submissions = data.submissions
+        const submissions = await api.getAdminSubmissions(params)
+        this.submissions = submissions
       } catch (err) {
         this.error.submissions = err.message
         console.error('Error fetching submissions:', err)
