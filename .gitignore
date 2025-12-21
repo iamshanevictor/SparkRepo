@@ -14,7 +14,10 @@ server/.env
 server/.env.local
 
 # Firebase credentials (DO NOT COMMIT)
-server/serviceAccountKey.json# Environment variables
+server/serviceAccountKey.json
+/server/serviceAccountKey.json
+
+# Environment variables
 .env
 .env.*.local
 server/.env
