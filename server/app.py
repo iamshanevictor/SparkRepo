@@ -8,12 +8,12 @@ from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 
 # Import blueprints
-from api import api
-from auth import auth
-from admin import admin_api
-from config import get_config
-from firebase_client import initialize_firebase
-from models import User
+from .api import api
+from .auth import auth
+from .admin import admin_api
+from .config import get_config
+from .firebase_client import initialize_firebase
+from .models import User
 
 # Setup logging
 logging.basicConfig(
@@ -101,7 +101,7 @@ def create_app(test_config=None):
         """Health check endpoint."""
         try:
             # Test Firebase connection
-            from firebase_client import get_firestore_client
+            from .firebase_client import get_firestore_client
             db = get_firestore_client()
             # Simple test query
             list(db.collection('categories').limit(1).stream())

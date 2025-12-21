@@ -1,7 +1,7 @@
 """Admin endpoints for managing weeks and submissions with Firebase."""
 from flask import Blueprint, request, jsonify
-from models import Week, Submission, Category
-from auth import admin_required
+from .models import Week, Submission, Category
+from .auth import admin_required
 import logging
 
 logger = logging.getLogger(__name__)

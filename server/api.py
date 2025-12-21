@@ -1,6 +1,6 @@
 """Public API blueprint for SparkRepo with Firebase Firestore."""
 from flask import request, jsonify, Blueprint
-from models import Category, Week, Submission
+from .models import Category, Week, Submission
 import logging
 
 logger = logging.getLogger(__name__)

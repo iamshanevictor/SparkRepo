@@ -1,7 +1,7 @@
 """Firestore data models and helper functions for SparkRepo."""
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from firebase_client import get_firestore_client
+from .firebase_client import get_firestore_client
 
 # Collection names
 CATEGORIES_COLLECTION = 'categories'

@@ -1,7 +1,7 @@
 """Authentication and user management blueprint with Firebase."""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from models import User
+from .models import User
 from datetime import timedelta
 import functools
 import logging
