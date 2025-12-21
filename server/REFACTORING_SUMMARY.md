@@ -1,5 +1,7 @@
 # SparkRepo Server Refactoring - Complete Summary
 
+> Archived: This summary reflects a previous Supabase-based backend. The project has since migrated to Firebase (Firestore). Please refer to `FIREBASE_SETUP_GUIDE.md` and `server/QUICKSTART.md` for the current architecture and setup instructions.
+
 ## Executive Summary
 
 Your SparkRepo server had **11 critical issues** and architectural conflicts. All have been **resolved and refactored**. The code is now production-ready with proper logging, error handling, validation, and documentation.

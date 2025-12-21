@@ -1,5 +1,7 @@
 # 🚀 SparkRepo Server Refactoring - Complete Checklist
 
+> Archived: This checklist documents a prior Supabase-oriented refactor. The current backend uses Firebase (Firestore). See `FIREBASE_SETUP_GUIDE.md` and `server/QUICKSTART.md` for the latest setup and operational guidance.
+
 ## ✅ All Issues Fixed
 
 ### Critical Issues (11)

@@ -1,5 +1,7 @@
 # Supabase Migration Setup Guide
 
+> Deprecated: SparkRepo no longer uses Supabase. The backend has migrated to Firebase (Firestore). This guide is kept for historical reference only. For current setup, use `FIREBASE_SETUP_GUIDE.md` and `server/QUICKSTART.md`.
+
 This guide will walk you through setting up Supabase for your SparkRepo application after the migration from PostgreSQL/SQLAlchemy.
 
 ## Prerequisites

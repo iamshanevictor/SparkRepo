@@ -75,7 +75,7 @@ cp .env.example .env
 ```
 
 ### Issue: "Connection refused"
-**Solution**: Make sure your Supabase instance is accessible and credentials are correct.
+**Solution**: Ensure your Firebase project is set up and the service account credentials in `.env` are correct.
 
 ### Issue: "Port 5000 already in use"
 **Solution**: Change the port in `app.py` or kill the process using port 5000:

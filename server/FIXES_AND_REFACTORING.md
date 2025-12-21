@@ -1,5 +1,7 @@
 # Server-Side Code Refactoring & Fixes Report
 
+> Archived: This document describes a prior Supabase-based architecture and refactoring phase. The current backend uses Firebase (Firestore) with JWT. For up-to-date setup and guidance, see `FIREBASE_SETUP_GUIDE.md` and `server/QUICKSTART.md`.
+
 ## Overview
 Comprehensive cleanup and refactoring of the SparkRepo backend to resolve architecture conflicts, improve code quality, and establish best practices.
 
