@@ -1,33 +1,33 @@
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
-import { api } from '../api'
+import { ref, computed, watch, toRef } from 'vue'
 import UploadForm from './UploadForm.vue'
 
 const props = defineProps({
   categoryId: String,
-  weekNumber: [String, Number]
+  weekNumber: [String, Number],
+  weekData: Object,
+  existingSubmission: Object
 })
 
 const emit = defineEmits(['submitted'])
 
-const loading = ref(true)
-const error = ref(null)
-const weekData = ref(null)
-const existingSubmission = ref(null)
 const showSubmissionForm = ref(false)
+
+// Use props directly or fallback to loading state
+const loading = computed(() => !props.weekData)
 
 // Compute if due soon (within 7 days)
 const isDueSoon = computed(() => {
-  if (!weekData.value?.due_date) return false
-  const dueDate = new Date(weekData.value.due_date)
+  if (!props.weekData?.due_date) return false
+  const dueDate = new Date(props.weekData.due_date)
   const now = new Date()
   const diffDays = (dueDate - now) / (1000 * 60 * 60 * 24)
   return diffDays <= 7 && diffDays >= 0
 })
 
 const isOverdue = computed(() => {
-  if (!weekData.value?.due_date) return false
-  return new Date(weekData.value.due_date) < new Date()
+  if (!props.weekData?.due_date) return false
+  return new Date(props.weekData.due_date) < new Date()
 })
 
 function formatDate(dateStr) {
@@ -40,36 +40,10 @@ function formatDate(dateStr) {
   })
 }
 
-async function loadWeek() {
-  loading.value = true
-  error.value = null
-  try {
-    const data = await api.getWeek(props.categoryId, props.weekNumber)
-    weekData.value = data
-    
-    // Load submission status
-    try {
-      const submission = await api.getSubmission(props.categoryId, props.weekNumber)
-      existingSubmission.value = submission
-    } catch (e) {
-      existingSubmission.value = null
-    }
-  } catch (e) {
-    error.value = e.message || 'Failed to load week'
-  } finally {
-    loading.value = false
-  }
-}
-
 function handleSubmissionSuccess() {
   showSubmissionForm.value = false
-  loadWeek()
   emit('submitted')
 }
-
-watch(() => props.weekNumber, loadWeek)
-
-onMounted(loadWeek)
 </script>
 
 <template>
@@ -81,9 +55,9 @@ onMounted(loadWeek)
     </div>
 
     <!-- Error -->
-    <div v-else-if="error" class="error">
+    <div v-else-if="!weekData" class="error">
       <span class="error-icon">😢</span>
-      <p>{{ error }}</p>
+      <p>No data available</p>
     </div>
 
     <!-- Content -->
@@ -119,7 +93,7 @@ onMounted(loadWeek)
           <span>✏️</span> What You'll Create
         </h3>
         <div class="section-content">
-          <p>{{ weekData.description || `Activities for Week ${weekNumber}: ${weekData.title}` }}</p>
+          <p>{{ weekData?.description || `Activities for Week ${weekNumber}: ${weekData?.title}` }}</p>
         </div>
       </div>
 
@@ -129,14 +103,14 @@ onMounted(loadWeek)
           <div class="info-icon">📅</div>
           <div class="info-content">
             <span class="info-label">DUE DATE</span>
-            <span class="info-value">{{ formatDate(weekData.due_date) || 'No due date' }}</span>
+            <span class="info-value">{{ formatDate(weekData?.due_date) || 'No due date' }}</span>
           </div>
         </div>
         <div class="info-card">
           <div class="info-icon">🔗</div>
           <div class="info-content">
             <span class="info-label">INSTRUCTIONS</span>
-            <a v-if="weekData.instructions_url" :href="weekData.instructions_url" target="_blank" class="info-link">
+            <a v-if="weekData?.instructions_url" :href="weekData.instructions_url" target="_blank" class="info-link">
               View Full Assignment →
             </a>
             <span v-else class="info-value">No instructions yet</span>

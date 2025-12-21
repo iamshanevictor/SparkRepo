@@ -1,6 +1,6 @@
 <template>
   <div class="category-list">
-    <div v-if="loading" class="loading">
+    <div v-if="categoriesLoading" class="loading">
       <div class="loading-spinner">🎨</div>
       <p>Loading your creative options...</p>
     </div>
@@ -25,7 +25,7 @@
             {{ categoryItem.description }}
           </p>
           <button class="btn btn-primary category-btn" :disabled="props.loading">
-            <span v-if="props.loading && selectedCategory?.id === categoryItem.id">
+            <span v-if="props.loading">
               🎯 Loading...
             </span>
             <span v-else>
@@ -40,8 +40,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { api } from '../api'
+import { onMounted } from 'vue'
+import { useCategories } from '../composables/useCategories'
 
 const props = defineProps({
   loading: {
@@ -52,10 +52,7 @@ const props = defineProps({
 
 const emit = defineEmits(['category-selected'])
 
-const categories = ref([])
-const loading = ref(true)
-const error = ref(null)
-const selectedCategory = ref(null)
+const { categories, loading: categoriesLoading, error, loadCategories } = useCategories()
 
 const getCategoryEmoji = (categoryName) => {
   const name = categoryName.toLowerCase()
@@ -66,25 +63,12 @@ const getCategoryEmoji = (categoryName) => {
   return '🎯'
 }
 
-const fetchCategories = async () => {
-  try {
-    loading.value = true
-    categories.value = await api.getCategories()
-  } catch (err) {
-    error.value = err.message
-    console.error('Failed to fetch categories:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
 const selectCategory = (categoryItem) => {
-  selectedCategory.value = categoryItem
   emit('category-selected', categoryItem)
 }
 
 onMounted(() => {
-  fetchCategories()
+  loadCategories()
 })
 </script>
 

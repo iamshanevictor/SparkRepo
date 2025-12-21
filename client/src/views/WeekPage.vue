@@ -1,20 +1,23 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api } from '../api'
+import { useWeeksList, useWeekData } from '../composables/useWeekData'
 import WeekView from '../components/WeekView.vue'
 
 const route = useRoute()
 const router = useRouter()
 const categoryId = ref(route.params.categoryId)
 const weekNumber = ref(Number(route.params.weekNumber))
-const weeks = ref([])
-const existingSubmission = ref(null)
-const weekData = ref(null)
+
+// Use composables for data loading with caching
+const { weeks: weeksList } = useWeeksList(categoryId)
+const { weekData, existingSubmission, refresh } = useWeekData(categoryId, weekNumber)
+
+// Extract week numbers for navigation
+const weeks = computed(() => weeksList.value.map(w => w.week_number))
 
 watch(() => route.params.weekNumber, (newWeek) => {
   weekNumber.value = Number(newWeek)
-  loadWeekData()
 })
 
 function goToWeek(week) {
@@ -28,36 +31,9 @@ function goHome() {
   router.push('/')
 }
 
-async function loadWeeks() {
-  try {
-    const ws = await api.getWeeks(categoryId.value)
-    weeks.value = ws.sort((a, b) => a.week_number - b.week_number).map(w => w.week_number)
-  } catch (e) {
-    console.error(e)
-    weeks.value = [4, 5]
-  }
+function handleSubmissionSuccess() {
+  refresh()
 }
-
-async function loadWeekData() {
-  try {
-    const data = await api.getWeek(categoryId.value, weekNumber.value)
-    weekData.value = data
-    
-    try {
-      const submission = await api.getSubmission(categoryId.value, weekNumber.value)
-      existingSubmission.value = submission
-    } catch (e) {
-      existingSubmission.value = null
-    }
-  } catch (e) {
-    console.error(e)
-  }
-}
-
-onMounted(() => {
-  loadWeeks()
-  loadWeekData()
-})
 </script>
 
 <template>
@@ -65,14 +41,18 @@ onMounted(() => {
     <!-- Purple Gradient Background -->
     <div class="background-gradient"></div>
     
+    <!-- Back Button Above Panels -->
+    <div class="top-actions">
+      <button class="back-btn" @click="goHome" title="Back to categories">
+        ← Back
+      </button>
+    </div>
+    
     <!-- Three-Panel Container -->
     <div class="panels-container">
       <!-- Left Panel: Weeks -->
       <div class="panel weeks-panel">
         <div class="panel-header">
-          <button class="icon-btn" @click="goHome" title="Go Home">
-            <span>🏠</span>
-          </button>
           <h3>Weeks</h3>
           <button class="icon-btn">
             <span>📋</span>
@@ -107,6 +87,9 @@ onMounted(() => {
           <WeekView 
             :category-id="categoryId"
             :week-number="weekNumber"
+            :week-data="weekData"
+            :existing-submission="existingSubmission"
+            @submitted="handleSubmissionSuccess"
           />
         </div>
       </div>
@@ -138,10 +121,12 @@ onMounted(() => {
 
 <style scoped>
 .week-page {
-  min-height: 100vh;
+  min-height: calc(100vh - 60px);
   position: relative;
   font-family: 'Fredoka', sans-serif;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Purple Gradient Background - Same as Homepage */
@@ -152,7 +137,33 @@ onMounted(() => {
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  z-index: 0;
+  z-index: -1;
+}
+
+.top-actions {
+  position: relative;
+  z-index: 1;
+  padding: 20px 24px 0 24px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.back-btn {
+  background: white;
+  color: #4a4a6a;
+  border: 1px solid #d9ddff;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
 /* Three-Panel Container */
@@ -163,8 +174,10 @@ onMounted(() => {
   grid-template-columns: 1fr 2fr 1fr;
   gap: 16px;
   padding: 24px;
-  height: 100vh;
   box-sizing: border-box;
+  flex: 1;
+  max-height: calc(100vh - 150px);
+  overflow: hidden;
 }
 
 /* Panel Base Styles - White/Light like homepage cards */

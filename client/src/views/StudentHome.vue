@@ -35,7 +35,7 @@ async function handleCategorySelected(category) {
       <div class="container">
         <div class="hero-content fade-in-up">
           <div class="hero-emoji">🎨✨</div>
-          <h1 class="hero-title">Welcome to SparkRepo!</h1>
+          <h1 class="hero-title">Welcome to Spark!</h1>
           <p class="hero-subtitle">
             Show off your amazing Scratch projects and beautiful Canva designs! 
             Pick a category below to get started on your creative journey! 🚀
@@ -62,11 +62,13 @@ async function handleCategorySelected(category) {
 
 <style scoped>
 .student-home {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: auto;
 }
 
 .hero-section {
-  padding: 4rem 0;
+  padding: 3rem 0 2.5rem;
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -113,7 +115,7 @@ async function handleCategorySelected(category) {
 }
 
 .categories-section {
-  padding: 3rem 0 4rem;
+  padding: 2.5rem 0 3rem;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   position: relative;
@@ -123,7 +125,7 @@ async function handleCategorySelected(category) {
 
 .section-header {
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
 }
 
 .section-header h2 {

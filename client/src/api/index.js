@@ -2,6 +2,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 const FULL_API_URL = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`
 console.log("Frontend API Base URL:", FULL_API_URL)
 
+// Request deduplication - prevent duplicate simultaneous requests
+const pendingRequests = new Map()
+
 function authHeaders() {
   const token = localStorage.getItem('access_token')
   return token ? { Authorization: `Bearer ${token}` } : {}
@@ -9,27 +12,45 @@ function authHeaders() {
 
 async function request(path, options = {}) {
   const requestUrl = `${FULL_API_URL}${path}`
+  const requestKey = `${options.method || 'GET'}:${requestUrl}`
+  
+  // Check if same request is already in progress
+  if (pendingRequests.has(requestKey)) {
+    console.log("Reusing pending request:", requestKey)
+    return pendingRequests.get(requestKey)
+  }
+
   console.log("Fetch Request URL:", requestUrl)
-  const res = await fetch(requestUrl, {
+  
+  const requestPromise = fetch(requestUrl, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
       ...authHeaders(),
     },
+  }).then(async (res) => {
+    if (!res.ok) {
+      // Try to extract error message
+      let message = `Request failed: ${res.status}`
+      try {
+        const data = await res.json()
+        if (data?.error) message = data.error
+      } catch {}
+      throw new Error(message)
+    }
+    // No content
+    if (res.status === 204) return null
+    return res.json()
+  }).finally(() => {
+    // Remove from pending after completion
+    pendingRequests.delete(requestKey)
   })
-  if (!res.ok) {
-    // Try to extract error message
-    let message = `Request failed: ${res.status}`
-    try {
-      const data = await res.json()
-      if (data?.error) message = data.error
-    } catch {}
-    throw new Error(message)
-  }
-  // No content
-  if (res.status === 204) return null
-  return res.json()
+
+  // Store pending request
+  pendingRequests.set(requestKey, requestPromise)
+  
+  return requestPromise
 }
 
 export const api = {
@@ -52,6 +73,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     })
+  },
+
+  getSubmission(categoryId, weekNumber) {
+    return request(`/categories/${categoryId}/weeks/${weekNumber}/submission`)
   },
 
   // Auth

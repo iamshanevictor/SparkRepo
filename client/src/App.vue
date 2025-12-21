@@ -7,7 +7,12 @@ export default {
 <template>
   <div class="app">
     <ErrorBoundary>
-      <router-view />
+      <div class="page-shell">
+        <router-view />
+        <footer class="global-footer">
+          Spark © 2025 · Crafted by Shane Victor
+        </footer>
+      </div>
     </ErrorBoundary>
   </div>
  </template>
@@ -30,7 +35,7 @@ export default {
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Fredoka', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
   color: var(--text-color);
   background-color: var(--background-color);
@@ -40,6 +45,23 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+}
+
+.page-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.global-footer {
+  margin-top: auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 0.95rem;
 }
 
 /* Student view styles */
@@ -100,11 +122,11 @@ main {
 }
 
 footer {
-  background-color: #333;
-  color: white;
+  background-color: transparent;
+  color: inherit;
   text-align: center;
-  padding: 1rem;
-  margin-top: auto;
+  padding: 0;
+  margin-top: 0;
 }
 
 /* Admin view styles */
