@@ -1,6 +1,0 @@
-2025-12-07 11:52:38 - __main__ - INFO - Initializing SparkRepo Flask application...
-2025-12-07 11:52:38 - __main__ - INFO - Configuration loaded: DevelopmentConfig
-2025-12-07 11:52:38 - __main__ - ERROR - SUPABASE_URL and SUPABASE_KEY must be set in environment variables
-2025-12-07 12:03:05 - __main__ - INFO - Initializing SparkRepo Flask application...
-2025-12-07 12:03:05 - __main__ - INFO - Configuration loaded: DevelopmentConfig
-2025-12-07 12:03:05 - __main__ - ERROR - SUPABASE_URL and SUPABASE_KEY must be set in environment variables

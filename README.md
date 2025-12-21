@@ -1,183 +1,129 @@
 # SparkRepo
 
-SparkRepo is a full-stack web application designed to help manage student submissions for classes that use Scratch or Canva. It provides a simple interface for instructors to view student projects, track submissions, and manage classes.
+A full-stack web application for managing student submissions in Scratch and Canva design classes. Features student project submission forms and admin dashboard for instructors.
 
-The project is built with a Vue.js frontend and a Flask (Python) backend.
+## Tech Stack
+
+- **Frontend**: Vue.js 3 + Vite
+- **Backend**: Flask (Python) + Firebase Firestore
+- **Authentication**: JWT tokens
+- **Database**: Google Cloud Firestore
 
 ## Project Structure
 
-- `/client`: Contains the Vue.js frontend application.
-- `/server`: Contains the Flask backend API.
+```
+SparkRepo/
+├── client/          # Vue.js frontend
+│   ├── src/         # Source code
+│   ├── public/      # Static assets
+│   └── package.json # Dependencies
+├── server/          # Flask backend
+│   ├── *.py         # Python modules
+│   ├── scripts/     # Database seeding
+│   ├── .env         # Environment variables
+│   └── requirements.txt # Dependencies
+└── README.md        # This file
+```
 
-## Prerequisites
+## Quick Start
 
-Before you begin, ensure you have the following installed:
+### Prerequisites
 
-- [Python](https://www.python.org/downloads/) (3.8 or higher)
-- [Node.js](https://nodejs.org/en/download/) (16.x or higher)
-- [pip](https://pip.pypa.io/en/stable/installation/) (Python package installer)
-- [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) (Node.js package manager)
+- Python 3.8+
+- Node.js 16+
+- Firebase project with Firestore enabled
 
-## Getting Started
+### 1. Clone Repository
 
-Follow these steps to get your development environment set up and running.
-
-### 1. Clone the Repository
-
-First, clone this repository to your local machine:
-
-```sh
+```bash
 git clone <repository-url>
 cd SparkRepo
 ```
 
-### 2. Configure the Backend
+### 2. Backend Setup
 
-Navigate to the server directory and set up the environment variables.
+```bash
+cd server
 
-1.  **Go to the `server` directory:**
-    ```sh
-    cd server
-    ```
+# Create virtual environment
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # macOS/Linux
 
-2.  **Create a `.env` file:**
-    Copy the example environment file:
-    ```sh
-    cp .env.example .env
-    ```
+# Install dependencies
+pip install -r requirements.txt
 
-3.  **Generate a JWT Secret Key:**
-    Run the following command to generate a secure secret key:
-    ```sh
-    python -c "import secrets; print(secrets.token_hex(32))"
-    ```
+# Configure environment
+cp .env.example .env
+# Edit .env with your Firebase credentials
 
-4.  **Update the `.env` file:**
-    Open the `.env` file and paste the generated key as the value for `JWT_SECRET_KEY`.
+# Run backend
+flask --app app:create_app run
+```
 
-    ```
-    JWT_SECRET_KEY=your_generated_secret_key_here
-    ```
+### 3. Frontend Setup
 
-### 3. Run the Application
+```bash
+cd client
 
-You need to run both the backend and frontend servers simultaneously in two separate terminals.
+# Install dependencies
+npm install
 
-**Terminal 1: Run the Backend (Flask)**
+# Run frontend
+npm run dev
+```
 
-1.  Make sure you are in the `server` directory:
-    ```powershell
-    cd server
-    ```
-2.  Ensure dependencies are installed (first run only):
-    ```powershell
-    python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.txt
-    ```
-3.  Start the backend using Flask CLI:
-    ```powershell
-    flask run
-    ```
-    The backend API will be running at `http://localhost:5000`.
+### 4. Seed Database (Optional)
 
-**Terminal 2: Run the Frontend (Vue)**
+```bash
+cd server
+python -m scripts.seed_firestore
+```
 
-1.  Open a new terminal and navigate to the `client` directory:
-    ```sh
-    cd client
-    ```
-2.  Install dependencies and start Vite dev server:
-    ```powershell
-    npm install
-    npm run dev
-    ```
+## Usage
 
-    The frontend application will be available at `http://localhost:5173`.
+### Student Interface
+- Visit `http://localhost:5173`
+- Browse categories and weeks
+- Submit projects via upload forms
 
-### Notes
+### Admin Interface
+- Login at `http://localhost:5173/admin/login`
+- Default credentials: `admin` / `admin123`
+- View and manage all submissions
+- Update week assignments
 
-- Backend uses Flask CLI. Ensure `FLASK_APP=app:create_app` is set (already in `server/.env`).
-- Frontend uses Vite. Use `npm run dev` in `client`.
+## Environment Variables
 
+### server/.env
+```env
+FLASK_APP=app:create_app
+FLASK_ENV=development
+JWT_SECRET_KEY=your-secret-key
+FIREBASE_SERVICE_ACCOUNT_PATH=serviceAccountKey.json
+ADMIN_PASSWORD=admin123
+CORS_ORIGINS=http://localhost:5173
+```
 
+## Firebase Setup
 
-### Backend Deployment
+1. Create a Firebase project
+2. Enable Firestore database
+3. Create a service account and download credentials as `server/serviceAccountKey.json`
+4. Update `FIREBASE_SERVICE_ACCOUNT_PATH` in `.env`
 
-1. Set up a virtual environment on your VM:
-   ```
-   python -m venv venv
-   source venv/bin/activate  # Linux/macOS
-   pip install -r requirements.txt
-   ```
+## API Endpoints
 
-2. Configure a production WSGI server (Gunicorn recommended):
-   ```
-   pip install gunicorn
-   gunicorn -w 4 -b 0.0.0.0:5000 'app:create_app()'
-   ```
+- `GET /api/categories` - List categories
+- `GET /api/categories/{id}/weeks` - List weeks for category
+- `POST /api/categories/{id}/weeks/{num}/submissions` - Submit project
+- `POST /api/auth/login` - Admin login
+- `GET /api/admin/weeks` - Admin: List all weeks
+- `GET /api/admin/submissions` - Admin: List all submissions
 
-3. Set up a reverse proxy with Nginx or Apache to forward requests to the Flask application.
+## Contributing
 
-### Frontend Deployment
-
-1. Build the Vue.js application:
-   ```
-   cd client
-   npm run build
-   ```
-
-2. Copy the contents of the `dist` directory to your web server's static files directory.
-
-3. Configure your web server to serve the static files and proxy API requests to the Flask backend.
-
-## API Documentation
-
-### Available Endpoints
-
-- `GET /api/categories` - List all available categories
-- `GET /api/categories/{id}` - Get details for a specific category
-- `GET /api/categories/{id}/weeks` - List all weeks for a category
-- `GET /api/categories/{id}/weeks/{week}` - Get a specific week's assignment
-- `POST /api/categories/{id}/weeks/{week}/submissions` - Submit or update a project link for a week
-- `GET /api/students` - List all students
-- `GET /api/students/{id}/submissions` - Get all submissions for a student
-
-Admin-only endpoints are available under `/api/admin` (weeks and submissions management). See the comments in `server/api.py` and `server/admin.py` for detailed request/response examples for each endpoint.
-
-## Database Schema
-
-The application uses SQLite with the following tables:
-
-- **categories**: Stores information about each category (e.g., Scratch, Canva)
-  - id (PK)
-  - name
-  - description
-  - created_at
-
-- **weeks**: Stores weekly assignments for each category
-  - id (PK)
-  - category_id (FK to categories.id)
-  - week_number
-  - title
-  - description
-  - assignment_url
-  - due_date
-  - created_at
-
-- **students**: Stores student information
-  - id (PK)
-  - name
-  - email
-  - class_id (FK to classes.id)
-  - created_at
-
-- **submissions**: Stores project link submissions
-  - id (PK)
-  - student_id (FK to students.id)
-  - week_id (FK to weeks.id)
-  - project_url
-  - comment
-  - submitted_at
-
-## License
-
-This project is licensed under the MIT License.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
