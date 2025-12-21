@@ -1,223 +1,558 @@
 <template>
   <div class="week-view">
-    <div class="header">
-      <button class="back-btn" @click="goBack">← Back to Categories</button>
-      <h2>{{ categoryInfo.name }}: Week {{ weekNumber }}</h2>
-    </div>
-    
-    <div v-if="loading" class="loading">Loading assignment details...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
-    <div v-else class="assignment-card">
-      <h3>{{ weekData.title }}</h3>
-      <p class="description">{{ weekData.description }}</p>
-      
-      <div class="assignment-details">
-        <div class="detail">
-          <strong>Due Date:</strong> 
-          <span>{{ formatDate(weekData.due_date) }}</span>
+    <div class="week-header">
+      <button class="btn btn-outline back-btn" @click="goBack">
+        🏠 Back to Categories
+      </button>
+      <div class="week-title-section">
+        <div class="week-emoji">🎯</div>
+        <div>
+          <h1 class="week-title">{{ categoryInfo.name }}</h1>
+          <h2 class="week-subtitle">Week {{ weekNumber }} Adventure!</h2>
         </div>
-        <div class="detail" v-if="weekData.assignment_url">
-          <strong>Assignment Link:</strong>
-          <a :href="weekData.assignment_url" target="_blank" rel="noopener noreferrer">
-            View Assignment
-          </a>
-        </div>
-      </div>
-      
-      <div class="submission-section">
-        <h4>Ready to Submit?</h4>
-        <p>Click the button below to upload your project for this week.</p>
-        <button @click="showSubmissionForm = true" class="submit-btn">Submit Your Project</button>
       </div>
     </div>
     
+    <div v-if="loading" class="loading">
+      <div class="loading-spinner">🎨</div>
+      <p>Loading your awesome assignment...</p>
+    </div>
+    
+    <div v-else-if="error" class="error">
+      <p>Oops! {{ error }}</p>
+    </div>
+    
+    <div v-else class="assignment-container">
+      <div class="assignment-card card">
+        <div class="card-header">
+          <h3 class="assignment-title">🎆 {{ weekData.title }}</h3>
+        </div>
+        
+        <div class="assignment-content">
+          <div class="description-section">
+            <h4>📝 What You'll Create:</h4>
+            <p class="description">{{ weekData.description }}</p>
+          </div>
+          
+          <div class="assignment-details">
+            <div class="detail-item">
+              <div class="detail-icon">📅</div>
+              <div class="detail-content">
+                <strong>Due Date:</strong>
+                <span class="due-date">{{ formatDate(weekData.due_date) }}</span>
+              </div>
+            </div>
+            
+            <div class="detail-item" v-if="weekData.assignment_url">
+              <div class="detail-icon">🔗</div>
+              <div class="detail-content">
+                <strong>Instructions:</strong>
+                <a :href="weekData.assignment_url" target="_blank" rel="noopener noreferrer" class="assignment-link">
+                  🚀 View Full Assignment
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="submission-card card">
+        <div class="submission-header">
+          <div class="submission-icon">🏆</div>
+          <div>
+            <h4>Ready to Show Your Creation?</h4>
+            <p>Upload your amazing project and share it with everyone!</p>
+          </div>
+        </div>
+        
+        <button @click="showSubmissionForm = true" class="btn btn-success submit-btn">
+          🎆 Submit Your Project
+        </button>
+      </div>
+      
+      <!-- Existing submission display -->
+      <div v-if="existingSubmission" class="existing-submission-card card">
+        <div class="submission-status">
+          <div class="status-icon">✅</div>
+          <div>
+            <h4>Great Job! You've Already Submitted</h4>
+            <p class="submitted-date">Submitted on {{ formatDate(existingSubmission.submitted_at) }}</p>
+          </div>
+        </div>
+        
+        <div class="submission-details">
+          <div class="submission-info">
+            <strong>👤 Your Name:</strong> {{ existingSubmission.student_name }}
+          </div>
+          <div class="submission-info">
+            <strong>🔗 Project Link:</strong>
+            <a :href="existingSubmission.project_url" target="_blank" rel="noopener noreferrer" class="project-link">
+              {{ existingSubmission.project_url }}
+            </a>
+          </div>
+          <div v-if="existingSubmission.comment" class="submission-info">
+            <strong>💭 Your Note:</strong>
+            <p class="comment">{{ existingSubmission.comment }}</p>
+          </div>
+        </div>
+        
+        <button @click="showSubmissionForm = true" class="btn btn-warning update-btn">
+          ✨ Update Your Submission
+        </button>
+      </div>
+    </div>
+
+    <!-- Upload Form Modal -->
     <UploadForm
       v-if="showSubmissionForm"
-      :category-id="categoryId"
-      :week-number="weekNumber"
-      :category-info="categoryInfo"
+      :categoryId="categoryId"
+      :weekNumber="weekNumber"
+      :existingSubmission="existingSubmission"
       @close="showSubmissionForm = false"
-      @submission-complete="handleSubmissionComplete"
+      @submitted="handleSubmissionSuccess"
     />
   </div>
 </template>
 
-<script>
-import { api } from '../api';
-import UploadForm from './UploadForm.vue';
+<script setup>
+import { ref, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import UploadForm from './UploadForm.vue'
+import { api } from '../api'
 
-export default {
-  name: 'WeekView',
-  components: {
-    UploadForm,
+const props = defineProps({
+  categoryId: {
+    type: String,
+    required: true,
   },
-  props: {
-    categoryId: {
-      type: String,
-      required: true
-    },
-    weekNumber: {
-      type: Number,
-      required: false
-    },
-    categoryInfo: {
-      type: Object,
-      required: true
-    },
+  weekNumber: {
+    type: Number,
+    required: true,
   },
-  data() {
-    return {
-      weekData: {},
-      loading: true,
-      error: null,
-      showSubmissionForm: false,
-    }
+  categoryInfo: {
+    type: Object,
+    required: true,
   },
-  computed: {},
-  watch: {
-    weekNumber: {
-      immediate: true,
-      handler(newWeek) {
-        if (newWeek !== null && newWeek !== undefined) {
-          this.fetchWeekData();
-        }
-      }
-    }
-  },
-  methods: {
-    async fetchWeekData() {
-      try {
-        this.loading = true;
-        this.error = null;
-        this.weekData = await api.getWeek(this.categoryId, this.weekNumber);
-      } catch (error) {
-        console.error('Error fetching week data:', error);
-        this.error = error.message || 'Failed to load week data. Please try again.';
-      } finally {
-        this.loading = false;
-      }
-    },
-    formatDate(dateString) {
-      if (!dateString) return 'N/A'
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    },
-    goBack() {
-      this.$emit('go-back')
-    },
-    handleSubmissionComplete(submission) {
-      this.showSubmissionForm = false
-      // Optionally, show a success message
-      alert('Your project has been submitted successfully!')
-      this.goBack()
-    }
+})
+
+const emit = defineEmits(['go-back'])
+const router = useRouter()
+
+const weekData = ref({})
+const existingSubmission = ref(null)
+const loading = ref(true)
+const error = ref(null)
+const showSubmissionForm = ref(false)
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'No due date set'
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  } catch (e) {
+    return dateString
   }
 }
+
+const goBack = () => {
+  emit('go-back')
+}
+
+const loadWeekData = async () => {
+  try {
+    loading.value = true
+    error.value = null
+    
+    // Get week assignment details
+    const weekResponse = await api.getWeek(props.categoryId, props.weekNumber)
+    weekData.value = weekResponse
+    
+    // Check for existing submission
+    try {
+      const submissions = await api.getWeekSubmissions(weekData.value.id)
+      existingSubmission.value = submissions.find(s => s.week_id === weekData.value.id) || null
+    } catch (submissionError) {
+      console.log('No existing submission found:', submissionError)
+    }
+    
+  } catch (err) {
+    console.error('Failed to load week data:', err)
+    error.value = err.message || 'Failed to load assignment details'
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleSubmissionSuccess = (submission) => {
+  existingSubmission.value = submission
+  showSubmissionForm.value = false
+}
+
+// Watch for prop changes
+watch(
+  () => [props.categoryId, props.weekNumber],
+  () => {
+    if (props.categoryId && props.weekNumber) {
+      loadWeekData()
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
+  loadWeekData()
+})
 </script>
 
 <style scoped>
 .week-view {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
+  min-height: 100vh;
+  background: var(--bg-main);
+  padding: 2rem 0;
 }
 
-.header {
+.week-header {
+  padding: 0 2rem 2rem;
   display: flex;
-  align-items: center;
-  margin-bottom: 20px;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .back-btn {
-  background-color: #000000;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 8px 16px;
-  margin-right: 20px;
-  cursor: pointer;
+  align-self: flex-start;
+  font-size: 1rem;
+}
+
+.week-title-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  color: var(--text-white);
+  text-align: left;
+}
+
+.week-emoji {
+  font-size: 4rem;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+.week-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.week-subtitle {
+  font-size: 1.8rem;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-white);
+}
+
+.loading-spinner {
+  font-size: 4rem;
+  animation: spin 2s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.assignment-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .assignment-card {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
+  border-radius: var(--radius-large);
+  overflow: hidden;
+}
+
+.card-header {
+  background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple));
+  color: var(--text-white);
+  padding: 2rem;
+  text-align: center;
+}
+
+.assignment-title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+.assignment-content {
+  padding: 2rem;
+}
+
+.description-section {
+  margin-bottom: 2rem;
+}
+
+.description-section h4 {
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
 }
 
 .description {
-  margin: 16px 0;
-  line-height: 1.6;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1.7;
+  background: #f8f9ff;
+  padding: 1.5rem;
+  border-radius: var(--radius-medium);
+  border-left: 4px solid var(--primary-blue);
 }
 
 .assignment-details {
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  padding: 16px;
-  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.detail {
-  margin-bottom: 10px;
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(74, 144, 226, 0.1);
+  border-radius: var(--radius-medium);
 }
 
-.submission-section {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #dee2e6;
+.detail-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
 }
 
-.existing-submission {
-  background-color: #e8f4f8;
-  border-radius: 6px;
-  padding: 16px;
-  margin-top: 10px;
+.detail-content {
+  flex: 1;
 }
 
-.submission-link {
+.detail-content strong {
+  color: var(--text-primary);
   display: block;
-  margin: 10px 0;
-  word-break: break-all;
-  color: #0066cc;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
 }
 
-.comment {
-  font-style: italic;
-  margin: 10px 0;
+.due-date {
+  color: var(--primary-purple);
+  font-weight: 500;
+}
+
+.assignment-link {
+  color: var(--primary-blue);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.assignment-link:hover {
+  color: var(--primary-purple);
+  transform: translateY(-1px);
+}
+
+.submission-card {
+  background: linear-gradient(135deg, var(--primary-green), #2ecc71);
+  color: var(--text-white);
+  text-align: center;
+}
+
+.submission-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.submission-icon {
+  font-size: 3rem;
+  flex-shrink: 0;
+}
+
+.submission-header h4 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+.submission-header p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+}
+
+.submit-btn {
+  font-size: 1.2rem;
+  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-white);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.submit-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-3px);
+}
+
+.existing-submission-card {
+  background: linear-gradient(135deg, var(--primary-orange), #f39c12);
+  color: var(--text-white);
+}
+
+.submission-status {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.status-icon {
+  font-size: 3rem;
+  flex-shrink: 0;
+}
+
+.submission-status h4 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
 }
 
 .submitted-date {
-  font-size: 0.9em;
-  color: #6c757d;
-  margin-bottom: 15px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
 }
 
-.submit-btn, .update-btn {
-  background-color: #4CAF50;
+.submission-details {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-medium);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(10px);
+}
+
+.submission-info {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.submission-info strong {
+  font-weight: 600;
+}
+
+.project-link {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  word-break: break-all;
+  transition: all 0.3s ease;
+}
+
+.project-link:hover {
   color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
+  text-decoration: underline;
+}
+
+.comment {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: var(--radius-small);
+  font-style: italic;
+  margin-top: 0.5rem;
 }
 
 .update-btn {
-  background-color: #17a2b8;
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-white);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-size: 1.1rem;
+  padding: 0.8rem 1.5rem;
 }
 
-.loading, .error {
-  text-align: center;
-  margin: 40px 0;
-  font-size: 18px;
+.update-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-3px);
 }
 
-.error {
-  color: #dc3545;
+@media (max-width: 768px) {
+  .week-header {
+    padding: 0 1rem 2rem;
+  }
+  
+  .week-title-section {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .week-emoji {
+    font-size: 3rem;
+  }
+  
+  .week-title {
+    font-size: 2rem;
+  }
+  
+  .week-subtitle {
+    font-size: 1.5rem;
+  }
+  
+  .assignment-container {
+    padding: 0 1rem;
+  }
+  
+  .assignment-content {
+    padding: 1.5rem;
+  }
+  
+  .card-header {
+    padding: 1.5rem;
+  }
+  
+  .assignment-title {
+    font-size: 1.5rem;
+  }
+  
+  .submission-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .submission-status {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .detail-item {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
 }
 </style>
