@@ -6,7 +6,8 @@ const props = defineProps({
   categoryId: String,
   weekNumber: [String, Number],
   weekData: Object,
-  existingSubmission: Object
+  existingSubmission: Object,
+  categoryInfo: Object
 })
 
 const emit = defineEmits(['submitted'])
@@ -145,9 +146,10 @@ function handleSubmissionSuccess() {
 
     <!-- Upload Form Modal -->
     <UploadForm
-      v-if="showSubmissionForm"
+      v-if="showSubmissionForm && categoryInfo"
       :categoryId="categoryId"
       :weekNumber="weekNumber"
+      :categoryInfo="categoryInfo"
       :existingSubmission="existingSubmission"
       @close="showSubmissionForm = false"
       @submitted="handleSubmissionSuccess"

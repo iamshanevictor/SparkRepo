@@ -1,7 +1,8 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWeeksList, useWeekData } from '../composables/useWeekData'
+import { useCategories } from '../composables/useCategories'
 import WeekView from '../components/WeekView.vue'
 
 const route = useRoute()
@@ -12,6 +13,17 @@ const weekNumber = ref(Number(route.params.weekNumber))
 // Use composables for data loading with caching
 const { weeks: weeksList } = useWeeksList(categoryId)
 const { weekData, existingSubmission, refresh } = useWeekData(categoryId, weekNumber)
+const { categories, loadCategories } = useCategories()
+
+// Load categories on mount
+onMounted(() => {
+  loadCategories()
+})
+
+// Find current category info
+const categoryInfo = computed(() => 
+  categories.value.find(cat => cat.id === categoryId.value)
+)
 
 // Extract week numbers for navigation
 const weeks = computed(() => weeksList.value.map(w => w.week_number))
@@ -89,6 +101,7 @@ function handleSubmissionSuccess() {
             :week-number="weekNumber"
             :week-data="weekData"
             :existing-submission="existingSubmission"
+            :category-info="categoryInfo"
             @submitted="handleSubmissionSuccess"
           />
         </div>

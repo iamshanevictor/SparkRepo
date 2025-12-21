@@ -54,14 +54,13 @@ export function useWeekData(categoryId, weekNumber) {
         return
       }
 
-      // Load fresh data
-      const [data, submission] = await Promise.allSettled([
-        api.getWeek(categoryId.value, weekNumber.value),
-        api.getSubmission(categoryId.value, weekNumber.value)
+      // Load fresh data - only fetch week (submission endpoint doesn't exist yet on backend)
+      const [data] = await Promise.allSettled([
+        api.getWeek(categoryId.value, weekNumber.value)
       ])
 
       weekData.value = data.status === 'fulfilled' ? data.value : null
-      existingSubmission.value = submission.status === 'fulfilled' ? submission.value : null
+      existingSubmission.value = null // Backend endpoint not implemented yet
 
       // Cache the result
       setCache(cacheKey, {

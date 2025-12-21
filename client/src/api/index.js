@@ -75,8 +75,10 @@ export const api = {
     })
   },
 
+  // Note: This endpoint doesn't exist yet on backend
+  // Returns null if user hasn't submitted yet
   getSubmission(categoryId, weekNumber) {
-    return request(`/categories/${categoryId}/weeks/${weekNumber}/submission`)
+    return request(`/categories/${categoryId}/weeks/${weekNumber}/submission`).catch(() => null)
   },
 
   // Auth
