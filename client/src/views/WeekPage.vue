@@ -330,6 +330,44 @@ onMounted(() => {
   color: #92400e;
 }
 
+/* Submit & Edit Buttons */
+.btn-submit {
+  margin-top: 20px;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.btn-edit {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-edit:hover {
+  background: #667eea;
+  color: white;
+}
+
 /* Responsive */
 @media (max-width: 1100px) {
   .panels-container {

@@ -47,6 +47,15 @@
             </div>
             
             <div class="form-group">
+              <label for="category">Project Type</label>
+              <select id="category" v-model="editingWeek.category_id" required>
+                <option v-for="cls in classes" :key="cls.id" :value="cls.id">
+                  {{ cls.name }}
+                </option>
+              </select>
+            </div>
+            
+            <div class="form-group">
               <label for="display-name">Display Name (optional)</label>
               <input type="text" id="display-name" v-model="editingWeek.display_name" />
               <small>This will be shown to students instead of the title if provided</small>
@@ -76,11 +85,14 @@
             </div>
             
             <div class="form-actions">
-              <button type="button" class="cancel-btn" @click="showEditWeekForm = false">Cancel</button>
-              <button type="submit" class="save-btn" :disabled="loading.updateWeek">
-                <span v-if="loading.updateWeek">Saving...</span>
-                <span v-else>Save Changes</span>
-              </button>
+              <button type="button" class="delete-btn" @click="confirmDeleteWeek">Delete Week</button>
+              <div class="action-buttons">
+                <button type="button" class="cancel-btn" @click="showEditWeekForm = false">Cancel</button>
+                <button type="submit" class="save-btn" :disabled="loading.updateWeek">
+                  <span v-if="loading.updateWeek">Saving...</span>
+                  <span v-else>Save Changes</span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -106,12 +118,18 @@
             
             <div class="form-group">
               <label for="new-week-number">Week Number</label>
-              <input type="number" id="new-week-number" v-model.number="newWeek.week_number" min="1" required />
+              <select id="new-week-number" v-model.number="newWeek.week_number" required>
+                <option value="" disabled>Select a week number</option>
+                <option v-for="num in 12" :key="num" :value="num" :disabled="!availableWeekNumbers.includes(num)">
+                  Week {{ num }}{{ !availableWeekNumbers.includes(num) ? ' (Already used)' : '' }}
+                </option>
+              </select>
             </div>
             
             <div class="form-group">
-              <label for="new-title">Title</label>
-              <input type="text" id="new-title" v-model="newWeek.title" required />
+              <label for="new-title">Assignment Title</label>
+              <input type="text" id="new-title" v-model="newWeek.assignmentTitle" placeholder="e.g., Zombie Shooter" required />
+              <small>Full title will be: Week {{ newWeek.week_number }}: {{ newWeek.assignmentTitle }}</small>
             </div>
             
             <div class="form-group">
@@ -310,13 +328,29 @@ export default {
       deletingSubmission: null,
       newWeek: {
         class_id: '',
-        week_number: 1,
+        week_number: '',
+        assignmentTitle: '',
         title: '',
         display_name: '',
         description: '',
         assignment_url: '',
         due_date_local: ''
       }
+    }
+  },
+  computed: {
+    availableWeekNumbers() {
+      // Get all used week numbers across ALL categories (Canva and Scratch share the same weeks)
+      const usedNumbers = this.weeks.map(w => w.week_number)
+      
+      // Return week numbers 1-12 that are not used
+      const available = []
+      for (let i = 1; i <= 12; i++) {
+        if (!usedNumbers.includes(i)) {
+          available.push(i)
+        }
+      }
+      return available
     }
   },
   mounted() {
@@ -405,12 +439,17 @@ export default {
     async updateWeek() {
       this.loading.updateWeek = true
       try {
-        const weekData = { ...this.editingWeek }
-        if (weekData.due_date_local) {
-          weekData.due_date = new Date(weekData.due_date_local).toISOString()
+        const weekData = {
+          title: this.editingWeek.title,
+          category_id: this.editingWeek.category_id,
+          display_name: this.editingWeek.display_name,
+          description: this.editingWeek.description,
+          assignment_url: this.editingWeek.assignment_url,
+          is_active: this.editingWeek.is_active,
         }
-        delete weekData.due_date_local
-        delete weekData.class_name
+        if (this.editingWeek.due_date_local) {
+          weekData.due_date = new Date(this.editingWeek.due_date_local).toISOString()
+        }
         await api.updateWeek(this.editingWeek.id, weekData)
         await this.fetchWeeks()
         this.showEditWeekForm = false
@@ -422,10 +461,39 @@ export default {
       }
     },
     
+    confirmDeleteWeek() {
+      if (confirm(`Are you sure you want to delete Week ${this.editingWeek.week_number}? This action cannot be undone.`)) {
+        this.deleteWeek()
+      }
+    },
+    
+    async deleteWeek() {
+      this.loading.updateWeek = true
+      try {
+        await api.deleteWeek(this.editingWeek.id)
+        await this.fetchWeeks()
+        this.showEditWeekForm = false
+        alert('Week deleted successfully')
+      } catch (err) {
+        console.error('Error deleting week:', err)
+        alert(`Error: ${err.message}`)
+      } finally {
+        this.loading.updateWeek = false
+      }
+    },
+    
     async addWeek() {
       this.loading.addWeek = true
       try {
-        const weekData = { ...this.newWeek }
+        const weekData = {
+          class_id: this.newWeek.class_id,
+          week_number: this.newWeek.week_number,
+          title: `Week ${this.newWeek.week_number}: ${this.newWeek.assignmentTitle}`,
+          display_name: this.newWeek.display_name,
+          description: this.newWeek.description,
+          assignment_url: this.newWeek.assignment_url,
+          due_date_local: this.newWeek.due_date_local
+        }
         if (weekData.due_date_local) {
           weekData.due_date = new Date(weekData.due_date_local).toISOString()
         }
@@ -434,7 +502,8 @@ export default {
         await this.fetchWeeks()
         this.newWeek = {
           class_id: '',
-          week_number: 1,
+          week_number: '',
+          assignmentTitle: '',
           title: '',
           display_name: '',
           description: '',
@@ -713,9 +782,15 @@ small {
 
 .form-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 12px;
   margin-top: 24px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
 }
 
 .cancel-btn, .save-btn {
@@ -739,6 +814,20 @@ small {
 .save-btn:disabled {
   background-color: #9e9e9e;
   cursor: not-allowed;
+}
+
+.delete-btn {
+  padding: 10px 16px;
+  border-radius: 4px;
+  background-color: #f44336;
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.delete-btn:hover {
+  background-color: #d32f2f;
 }
 
 .filters {

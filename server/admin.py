@@ -60,6 +60,7 @@ def update_week(week_id):
         "description": "Updated description",
         "assignment_url": "https://scratch.mit.edu/projects/updated",
         "due_date": "2025-06-15T23:59:59",
+        "category_id": "new_category_id",
         "is_active": true
     }
     """
@@ -76,6 +77,7 @@ def update_week(week_id):
         updated_week = Week.update(
             week_id,
             title=data.get('title'),
+            category_id=data.get('category_id'),
             display_name=data.get('display_name'),
             description=data.get('description'),
             assignment_url=data.get('assignment_url'),

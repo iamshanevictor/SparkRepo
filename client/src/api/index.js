@@ -76,6 +76,11 @@ export const api = {
       body: JSON.stringify(payload),
     })
   },
+  deleteWeek(weekId) {
+    return request(`/admin/weeks/${weekId}`, {
+      method: 'DELETE',
+    })
+  },
   createWeek(categoryId, payload) {
     return request(`/admin/categories/${categoryId}/weeks`, {
       method: 'POST',
