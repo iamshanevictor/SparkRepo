@@ -2,6 +2,8 @@
 
 This guide will help you set up Firebase for your SparkRepo application.
 
+> Important: Never commit your service account key to the repository. Keep `serviceAccountKey.json` local and ignored by Git, or use the `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable.
+
 ## Step 1: Create a Firebase Project
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)

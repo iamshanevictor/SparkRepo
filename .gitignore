@@ -1,4 +1,20 @@
-# Environment variables
+# Global
+.DS_Store
+Thumbs.db
+
+# Python
+server/.venv/
+__pycache__/
+
+# Node
+client/node_modules/
+
+# Env files
+server/.env
+server/.env.local
+
+# Firebase credentials (DO NOT COMMIT)
+server/serviceAccountKey.json# Environment variables
 .env
 .env.*.local
 server/.env
