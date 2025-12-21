@@ -67,6 +67,46 @@ def get_week_assignment(category_id, week_number):
         return handle_error(e, 500)
 
 
+# POST /categories/{id}/weeks/{num}/submissions - Create submission (alternate route)
+@api.route('/categories/<string:category_id>/weeks/<int:week_number>/submissions', methods=['POST', 'OPTIONS'])
+def create_submission_by_week_number(category_id, week_number):
+    """Create a new submission for a specific week by category and week number."""
+    try:
+        # Find the week
+        week = Week.get_by_category_and_number(category_id, week_number)
+        if not week:
+            return jsonify({'error': 'Week not found'}), 404
+        
+        # Get submission data
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        student_name = data.get('student_name')
+        project_url = data.get('project_url')
+        
+        if not student_name or not project_url:
+            return jsonify({'error': 'student_name and project_url are required'}), 400
+        
+        # Create submission
+        submission = Submission.create(
+            week_id=week['id'],
+            student_name=student_name,
+            project_url=project_url,
+            status='pending'
+        )
+        
+        logger.info(f"Submission created: {submission['id']} for week {week['id']}")
+        return jsonify({
+            'message': 'Submission created successfully',
+            'submission': submission
+        }), 201
+        
+    except Exception as e:
+        return handle_error(e, 500)
+
+
 # GET /weeks/{id} - Get week by ID
 @api.route('/weeks/<string:week_id>', methods=['GET'])
 def get_week(week_id):

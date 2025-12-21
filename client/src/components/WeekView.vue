@@ -53,7 +53,7 @@ export default {
   },
   props: {
     categoryId: {
-      type: Number,
+      type: String,
       required: true
     },
     weekNumber: {

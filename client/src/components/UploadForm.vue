@@ -63,7 +63,7 @@ import { api } from '../api'
 export default {
   name: 'UploadForm',
   props: {
-    categoryId: { type: Number, required: true },
+    categoryId: { type: String, required: true },
     weekNumber: { type: Number, required: true },
     categoryInfo: { type: Object, required: true },
   },

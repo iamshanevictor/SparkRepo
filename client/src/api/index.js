@@ -34,11 +34,11 @@ async function request(path, options = {}) {
 
 export const api = {
   getCategories() {
-    return request('/categories')
+    return request('/categories').then((data) => data.categories || [])
   },
 
   getWeeks(categoryId) {
-    return request(`/categories/${categoryId}/weeks`)
+    return request(`/categories/${categoryId}/weeks`).then((data) => data.weeks || [])
   },
 
   getWeek(categoryId, weekNumber, includeSubmissions = false) {
@@ -68,7 +68,7 @@ export const api = {
 
   // Admin
   getAdminWeeks() {
-    return request('/admin/weeks')
+    return request('/admin/weeks').then((data) => data.weeks || [])
   },
   updateWeek(weekId, payload) {
     return request(`/admin/weeks/${weekId}`, {
@@ -85,7 +85,7 @@ export const api = {
   getAdminSubmissions(params = {}) {
     const query = new URLSearchParams(params).toString()
     const suffix = query ? `?${query}` : ''
-    return request(`/admin/submissions${suffix}`)
+    return request(`/admin/submissions${suffix}`).then((data) => data.submissions || [])
   },
   updateSubmission(submissionId, payload) {
     return request(`/admin/submissions/${submissionId}`, {

@@ -8,7 +8,7 @@ const route = useRoute()
 const router = useRouter()
 const weeks = ref([])
 const loading = ref(false)
-const categoryId = ref(Number(route.params.categoryId))
+const categoryId = ref(route.params.categoryId)
 const weekNumber = ref(Number(route.params.weekNumber))
 const categoryInfo = ref(null)
 
@@ -49,7 +49,7 @@ function onGoBack() {
 watch(
   () => route.params,
   async (p) => {
-    categoryId.value = Number(p.categoryId)
+    categoryId.value = p.categoryId
     weekNumber.value = Number(p.weekNumber)
     await Promise.all([loadCategory(), loadWeeks()])
   }

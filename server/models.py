@@ -167,12 +167,14 @@ class Week:
         """Get all weeks for a category."""
         db = get_firestore_client()
         weeks = []
-        docs = db.collection(WEEKS_COLLECTION).where('category_id', '==', category_id).order_by('week_number').stream()
+        # Avoid Firestore composite index requirement by fetching then sorting client-side.
+        docs = db.collection(WEEKS_COLLECTION).where('category_id', '==', category_id).stream()
         for doc in docs:
             data = doc.to_dict()
             data['id'] = doc.id
             weeks.append(data)
-        return weeks
+        # Sort by week_number in Python to preserve expected order.
+        return sorted(weeks, key=lambda w: w.get('week_number', 0))
     
     @staticmethod
     def get_by_id(week_id):
