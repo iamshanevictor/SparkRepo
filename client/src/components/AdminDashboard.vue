@@ -23,14 +23,18 @@
     
     <!-- Weeks Management Tab -->
     <div v-if="activeTab === 'weeks'" class="tab-content">
-      <div class="section-header">
-        <h3>Weeks Management</h3>
-        <button class="add-btn" @click="showAddWeekForm = true">Add New Week</button>
+      <div class="content-container">
+        <div class="section-header">
+          <h3>Weeks Management</h3>
+          <button class="add-btn" @click="showAddWeekForm = true">Add New Week</button>
+        </div>
+        
+        <div class="table-wrapper">
+          <div v-if="loading.weeks" class="loading">Loading weeks...</div>
+          <div v-else-if="error.weeks" class="error">{{ error.weeks }}</div>
+          <WeeksTable v-else :weeks="weeks" @edit="editWeek" />
+        </div>
       </div>
-      
-      <div v-if="loading.weeks" class="loading">Loading weeks...</div>
-      <div v-else-if="error.weeks" class="error">{{ error.weeks }}</div>
-      <WeeksTable v-else :weeks="weeks" @edit="editWeek" />
       
       <!-- Edit Week Modal -->
       <div v-if="showEditWeekForm" class="modal">
@@ -166,38 +170,53 @@
     
     <!-- Submissions Management Tab -->
     <div v-if="activeTab === 'submissions'" class="tab-content">
-      <div class="section-header">
-        <h3>Submissions Management</h3>
-        <div class="filters">
-          <select v-model="filters.class_id" @change="fetchSubmissions">
-            <option value="">All Classes</option>
-            <option v-for="cls in classes" :key="cls.id" :value="cls.id">
-              {{ cls.name }}
-            </option>
-          </select>
-          
-          <select v-model="filters.week_id" @change="fetchSubmissions">
-            <option value="">All Weeks</option>
-            <option v-for="week in weeks" :key="week.id" :value="week.id">
-              Week {{ week.week_number }}: {{ week.display_name || week.title }}
-            </option>
-          </select>
-          
-          <select v-model="filters.status" @change="fetchSubmissions">
-            <option value="">All Statuses</option>
-            <option value="submitted">Submitted</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+      <div class="content-container">
+        <div class="section-header">
+          <h3>Submissions Management</h3>
+        </div>
+
+        <div class="filters" role="group" aria-label="Submission filters">
+          <div class="filter-field">
+            <label class="filter-label" for="filter-class">Class</label>
+            <select id="filter-class" class="filter-select" v-model="filters.class_id" @change="handleClassFilterChange">
+              <option value="">All Classes</option>
+              <option v-for="cls in classes" :key="cls.id" :value="cls.id">
+                {{ cls.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="filter-field">
+            <label class="filter-label" for="filter-week">Week</label>
+            <select id="filter-week" class="filter-select" v-model="filters.week_id" @change="fetchSubmissions">
+              <option value="">All Weeks</option>
+              <option v-for="week in filteredWeeksForSubmissions" :key="week.id" :value="week.id">
+                Week {{ week.week_number }}: {{ week.display_name || week.title }}
+              </option>
+            </select>
+          </div>
+
+          <div class="filter-field">
+            <label class="filter-label" for="filter-status">Status</label>
+            <select id="filter-status" class="filter-select" v-model="filters.status" @change="fetchSubmissions">
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="submitted">Submitted</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="table-wrapper">
+          <div v-if="loading.submissions" class="loading">Loading submissions...</div>
+          <div v-else-if="error.submissions" class="error">{{ error.submissions }}</div>
+          <div v-else-if="submissions.length === 0" class="no-data">
+            No submissions found with the current filters.
+          </div>
+          <SubmissionsTable v-else :submissions="submissions" @review="editSubmission" @delete="confirmDeleteSubmission" />
         </div>
       </div>
-      
-      <div v-if="loading.submissions" class="loading">Loading submissions...</div>
-      <div v-else-if="error.submissions" class="error">{{ error.submissions }}</div>
-      <div v-else-if="submissions.length === 0" class="no-data">
-        No submissions found with the current filters.
-      </div>
-      <SubmissionsTable v-else :submissions="submissions" @review="editSubmission" @delete="confirmDeleteSubmission" />
       
       <!-- Edit Submission Modal -->
       <div v-if="showEditSubmissionForm" class="modal">
@@ -233,6 +252,7 @@
             <div class="form-group">
               <label for="submission-status">Status</label>
               <select id="submission-status" v-model="editingSubmission.status" required>
+                <option value="pending">Pending</option>
                 <option value="submitted">Submitted</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
@@ -339,6 +359,10 @@ export default {
     }
   },
   computed: {
+        filteredWeeksForSubmissions() {
+          if (!this.filters.class_id) return this.weeks
+          return (this.weeks || []).filter(w => w.category_id === this.filters.class_id)
+        },
     availableWeekNumbers() {
       // Get all used week numbers across ALL categories (Canva and Scratch share the same weeks)
       const usedNumbers = this.weeks.map(w => w.week_number)
@@ -359,6 +383,16 @@ export default {
     this.fetchSubmissions()
   },
   methods: {
+    handleClassFilterChange() {
+      // If a week is selected that doesn't belong to the chosen class, clear it.
+      if (this.filters.week_id && this.filters.class_id) {
+        const selectedWeek = (this.weeks || []).find(w => w.id === this.filters.week_id)
+        if (selectedWeek && selectedWeek.category_id !== this.filters.class_id) {
+          this.filters.week_id = ''
+        }
+      }
+      this.fetchSubmissions()
+    },
     // Authentication
     logout() {
       const { logout } = useAuth()
@@ -405,7 +439,21 @@ export default {
           ...(this.filters.status ? { status: this.filters.status } : {}),
         }
         const submissions = await api.getAdminSubmissions(params)
-        this.submissions = submissions
+        // Admin submissions are stored with week_id; join against loaded weeks
+        // so the UI always shows Week # + title even if the backend doesn't.
+        const byWeekId = new Map((this.weeks || []).map(w => [w.id, w]))
+        this.submissions = (submissions || []).map((s) => {
+          const weekId = s.week_id || s.weekId || s.week
+          const week = weekId ? byWeekId.get(weekId) : null
+          const weekNumber = s.week_number ?? week?.week_number ?? ''
+          const weekTitle = s.week_title ?? week?.display_name ?? week?.title ?? ''
+          return {
+            ...s,
+            week_id: weekId || s.week_id,
+            week_number: weekNumber,
+            week_title: weekTitle,
+          }
+        })
       } catch (err) {
         this.error.submissions = err.message
         console.error('Error fetching submissions:', err)
@@ -580,130 +628,214 @@ export default {
 
 <style scoped>
 .admin-dashboard {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  /* IMPORTANT: don't use 100vh here.
+     App.vue already lays out <router-view> + footer in a 100vh shell.
+     If this component claims 100vh, the footer is pushed below the fold. */
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .admin-header {
+  background: white;
+  padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.admin-header h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #1e3c72;
+  margin: 0;
 }
 
 .logout-btn {
-  background-color: #f44336;
+  background: #dc3545;
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 0.625rem 1.25rem;
+  border-radius: 6px;
   cursor: pointer;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
 }
 
 .admin-tabs {
+  background: white;
   display: flex;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #ddd;
+  gap: 0.25rem;
+  padding: 0 2rem;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .tab-btn {
-  padding: 10px 20px;
+  padding: 0.75rem 1.25rem;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 1.05rem;
+  font-weight: 500;
   border-bottom: 3px solid transparent;
-  color: #555;
+  color: #6b7280;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: #1e3c72;
+  background: #f9fafb;
 }
 
 .tab-btn.active {
-  border-bottom-color: #4CAF50;
-  font-weight: bold;
-  color: #000;
+  border-bottom-color: #1e3c72;
+  color: #1e3c72;
+  background: #f9fafb;
+}
+
+.tab-content {
+  padding: 1.25rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.content-container {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  display: flex;
+    min-height: 0;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+  table-layout: fixed;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 1rem;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  flex: 1;
 }
 
 .add-btn {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
   cursor: pointer;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  background: #1e3c72;
+  color: #ffffff;
+  white-space: nowrap;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
+.add-btn:hover {
+  background: #16335f;
 }
 
 th, td {
-  padding: 12px;
+  padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid #ddd;
+  word-wrap: break-word;
 }
 
+/* Proper column distribution across full width */
+th:nth-child(1), td:nth-child(1) { width: 8%; }
+th:nth-child(2), td:nth-child(2) { width: 12%; }
+th:nth-child(3), td:nth-child(3) { width: 32%; }
+th:nth-child(4), td:nth-child(4) { width: 30%; }
+th:nth-child(5), td:nth-child(5) { width: 10%; }
+th:nth-child(6), td:nth-child(6) { width: 8%; text-align: center; }
+
 th {
-  background-color: #f5f5f5;
-  font-weight: bold;
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+td {
+  border-bottom: 1px solid #f3f4f6;
+  color: #1f2937;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover td {
+  background: #f9fafb;
 }
 
 .status {
   display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 14px;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: capitalize;
 }
 
 .status.active {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .status.inactive {
-  background-color: #f5f5f5;
-  color: #757575;
+  background: #f3f4f6;
+  color: #6b7280;
 }
 
 .status.submitted {
-  background-color: #e3f2fd;
-  color: #1565c0;
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .status.approved {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .status.rejected {
-  background-color: #ffebee;
-  color: #c62828;
-}
-
-.edit-btn, .delete-btn {
-  padding: 4px 8px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 5px;
-}
-
-.edit-btn {
-  background-color: #2196F3;
-  color: white;
-}
-
-.delete-btn {
-  background-color: #f44336;
-  color: white;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .modal {
@@ -712,166 +844,285 @@ th {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(17, 24, 39, 0.7);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal-content {
-  background-color: white;
-  border-radius: 8px;
+  background: white;
+  border-radius: 12px;
   width: 90%;
-  max-width: 600px;
+  max-width: 650px;
   max-height: 90vh;
   overflow-y: auto;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.modal-header h3 {
+  font-size: 1.625rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
 }
 
 .close-btn {
-  background: none;
+  background: #f3f4f6;
   border: none;
-  font-size: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.5rem;
   cursor: pointer;
-  color: #6c757d;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
 }
 
 label {
   display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #374151;
+  font-size: 1rem;
 }
 
 input, select, textarea {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
+  padding: 0.875rem 1.125rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+textarea {
+  resize: vertical;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
+  cursor: pointer;
 }
 
 .checkbox-label input {
   width: auto;
-  margin-right: 10px;
+  margin-right: 0.625rem;
+  cursor: pointer;
 }
 
 small {
   display: block;
-  margin-top: 5px;
-  color: #6c757d;
-  font-size: 12px;
+  margin-top: 0.375rem;
+  color: #6b7280;
+  font-size: 0.813rem;
 }
 
 .form-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f3f4f6;
 }
 
 .action-buttons {
   display: flex;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .cancel-btn, .save-btn {
-  padding: 10px 16px;
-  border-radius: 4px;
+  padding: 0.875rem 1.75rem;
+  border-radius: 8px;
   cursor: pointer;
+  font-weight: 600;
+  font-size: 1.05rem;
+  transition: all 0.2s;
 }
 
 .cancel-btn {
-  background-color: #f8f9fa;
-  border: 1px solid #ddd;
-  color: #333;
+  background: #f3f4f6;
+  border: 2px solid #e5e7eb;
+  color: #374151;
+}
+
+.cancel-btn:hover {
+  background: #e5e7eb;
 }
 
 .save-btn {
-  background-color: #4CAF50;
+  background: #3b82f6;
   border: none;
   color: white;
+}
+
+.save-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .save-btn:disabled {
-  background-color: #9e9e9e;
+  background: #9ca3af;
   cursor: not-allowed;
+  transform: none;
 }
 
 .delete-btn {
-  padding: 10px 16px;
-  border-radius: 4px;
-  background-color: #f44336;
+  padding: 0.875rem 1.75rem;
+  border-radius: 8px;
+  background: #ef4444;
   border: none;
   color: white;
   cursor: pointer;
-  transition: background-color 0.2s;
+  font-weight: 600;
+  font-size: 1.05rem;
+  transition: all 0.2s;
 }
 
 .delete-btn:hover {
-  background-color: #d32f2f;
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
 .filters {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 0.25rem;
 }
 
-.filters select {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+.filter-field {
+  min-width: 0;
+}
+
+.filter-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.filter-select {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #111827;
+  font-weight: 600;
+  background: #ffffff;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+@media (max-width: 980px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
 }
 
 .loading, .error, .no-data {
   text-align: center;
-  margin: 40px 0;
-  font-size: 18px;
+  margin: 2rem 0;
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: #6b7280;
 }
 
 .error {
-  color: #f44336;
+  color: #dc2626;
+  background: #fee2e2;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 2px solid #fecaca;
 }
 
 .submission-details {
-  background-color: #f8f9fa;
-  padding: 16px;
+  background: #f9fafb;
+  padding: 1.25rem;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
+  border: 2px solid #e5e7eb;
 }
 
 .detail-row {
-  margin-bottom: 10px;
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
 }
 
 .detail-row strong {
-  margin-right: 5px;
+  margin-right: 0.5rem;
+  color: #374151;
+  font-weight: 600;
 }
 
 .confirmation-message {
-  margin-bottom: 20px;
-  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  line-height: 1.7;
+  color: #4b5563;
 }
 
 .confirmation-message p {
-  margin-bottom: 10px;
+  margin-bottom: 0.75rem;
 }
 </style>

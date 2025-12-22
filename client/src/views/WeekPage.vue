@@ -15,6 +15,10 @@ const { weeks: weeksList } = useWeeksList(categoryId)
 const { weekData, existingSubmission, refresh } = useWeekData(categoryId, weekNumber)
 const { categories, loadCategories } = useCategories()
 
+const localSubmissionOverride = ref(null)
+const toastMessage = ref('')
+let toastTimer = null
+
 // Load categories on mount
 onMounted(() => {
   loadCategories()
@@ -43,7 +47,20 @@ function goHome() {
   router.push('/')
 }
 
-function handleSubmissionSuccess() {
+const effectiveSubmission = computed(() => localSubmissionOverride.value || existingSubmission.value)
+
+function handleSubmissionSuccess(submission) {
+  if (submission) {
+    localSubmissionOverride.value = submission
+  } else {
+    // Fallback to a lightweight marker so the UI updates immediately.
+    localSubmissionOverride.value = { id: 'local', submitted_at: new Date().toISOString(), status: 'submitted' }
+  }
+
+  toastMessage.value = 'Submitted successfully.'
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastMessage.value = '' }, 3200)
+
   refresh()
 }
 </script>
@@ -58,6 +75,10 @@ function handleSubmissionSuccess() {
       <button class="back-btn" @click="goHome" title="Back to categories">
         ← Back
       </button>
+    </div>
+
+    <div v-if="toastMessage" class="toast" role="status" aria-live="polite">
+      {{ toastMessage }}
     </div>
     
     <!-- Three-Panel Container -->
@@ -100,7 +121,7 @@ function handleSubmissionSuccess() {
             :category-id="categoryId"
             :week-number="weekNumber"
             :week-data="weekData"
-            :existing-submission="existingSubmission"
+            :existing-submission="effectiveSubmission"
             :category-info="categoryInfo"
             @submitted="handleSubmissionSuccess"
           />
@@ -116,7 +137,7 @@ function handleSubmissionSuccess() {
           </button>
         </div>
         <div class="panel-content status-content">
-          <div v-if="existingSubmission" class="status-card submitted">
+          <div v-if="effectiveSubmission" class="status-card submitted">
             <div class="status-icon">✅</div>
             <h4>Great Job! 🎉</h4>
             <p>Your work has been submitted!</p>
@@ -159,6 +180,20 @@ function handleSubmissionSuccess() {
   padding: 20px 24px 0 24px;
   display: flex;
   justify-content: flex-start;
+}
+
+.toast {
+  position: fixed;
+  top: 92px;
+  right: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9ddff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-weight: 700;
+  color: #2f2f4a;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  z-index: 10;
 }
 
 .back-btn {

@@ -1,44 +1,42 @@
 <template>
-  <div class="login-container">
-    <div class="login-form">
-      <h2>Admin Login</h2>
-      
-      <div v-if="error" class="error-message">{{ error }}</div>
-      
-      <form @submit.prevent="login">
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input 
-            type="text" 
-            id="username" 
-            v-model="credentials.username" 
-            required
-            :disabled="loading"
-          />
-        </div>
-        
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input 
-            type="password" 
-            id="password" 
-            v-model="credentials.password" 
-            required
-            :disabled="loading"
-          />
-        </div>
-        
-        <button type="submit" class="login-btn" :disabled="loading">
-          <span v-if="loading">
-            <span class="spinner"></span> Logging in...
-          </span>
-          <span v-else>Login</span>
-        </button>
-      </form>
-      
-      <div class="back-to-app">
-        <a href="#" @click.prevent="goToStudentView">Back to Student View</a>
+  <div class="login-form">
+    <div v-if="error" class="error-message">{{ error }}</div>
+    
+    <form @submit.prevent="login">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input 
+          type="text" 
+          id="username" 
+          v-model="credentials.username" 
+          required
+          :disabled="loading"
+          placeholder="Enter your username"
+        />
       </div>
+      
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          v-model="credentials.password" 
+          required
+          :disabled="loading"
+          placeholder="Enter your password"
+        />
+      </div>
+      
+      <button type="submit" class="login-btn" :disabled="loading">
+        <span v-if="loading">
+          <span class="spinner"></span> Signing in...
+        </span>
+        <span v-else>Sign In</span>
+      </button>
+    </form>
+    
+    <div class="back-to-app">
+      <a href="/" @click.prevent="$router.push('/')">← Back to Student Portal</a>
     </div>
   </div>
 </template>
@@ -84,87 +82,100 @@ export default {
 </script>
 
 <style scoped>
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 70vh;
-}
-
 .login-form {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  padding: 30px;
   width: 100%;
-  max-width: 400px;
-}
-
-h2 {
-  text-align: center;
-  margin-bottom: 24px;
-  color: #333;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
 }
 
 label {
   display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.925rem;
 }
 
 input {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+input::placeholder {
+  color: #9ca3af;
+}
+
+input:disabled {
+  background: #f9fafb;
+  cursor: not-allowed;
 }
 
 .login-btn {
   width: 100%;
-  padding: 12px;
-  background-color: #4CAF50;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
   color: white;
   border: none;
-  border-radius: 4px;
-  font-size: 16px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
 }
 
-.login-btn:hover {
-  background-color: #45a049;
+.login-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(30, 60, 114, 0.3);
 }
 
 .login-btn:disabled {
-  background-color: #9e9e9e;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .error-message {
-  background-color: #ffebee;
-  color: #c62828;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 20px;
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.925rem;
+  font-weight: 500;
+  border-left: 4px solid #dc2626;
 }
 
 .back-to-app {
   text-align: center;
-  margin-top: 20px;
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
 }
 
 .back-to-app a {
-  color: #2196F3;
+  color: #3b82f6;
   text-decoration: none;
+  font-weight: 500;
+  font-size: 0.925rem;
+  transition: color 0.2s;
 }
 
 .back-to-app a:hover {
-  text-decoration: underline;
+  color: #2563eb;
 }
 
 .spinner {
@@ -174,8 +185,9 @@ input {
   border: 2px solid rgba(255,255,255,0.3);
   border-radius: 50%;
   border-top-color: #fff;
-  animation: spin 1s ease-in-out infinite;
-  margin-right: 8px;
+  animation: spin 0.8s linear infinite;
+  margin-right: 0.5rem;
+  vertical-align: middle;
 }
 
 @keyframes spin {

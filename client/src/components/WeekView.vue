@@ -41,9 +41,9 @@ function formatDate(dateStr) {
   })
 }
 
-function handleSubmissionSuccess() {
+function handleSubmissionSuccess(submission) {
   showSubmissionForm.value = false
-  emit('submitted')
+  emit('submitted', submission)
 }
 </script>
 

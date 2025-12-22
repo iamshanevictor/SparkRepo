@@ -18,7 +18,20 @@
             placeholder="Enter your full name"
             required
             :disabled="isSubmitting"
+            autocomplete="name"
+            @blur="normalizeStudentName"
+            @input="touched.name = true"
+            :aria-invalid="Boolean(nameError)"
+            aria-describedby="student-name-help student-name-error"
           />
+          <small>Enter first and last name (e.g., "Juan Dela Cruz").</small>
+          <div
+            v-if="nameError && (touched.name || attemptedSubmit)"
+            id="student-name-error"
+            class="field-error"
+          >
+            {{ nameError }}
+          </div>
         </div>
 
         <div class="form-group">
@@ -30,8 +43,18 @@
             placeholder="https://scratch.mit.edu/projects/123456"
             required
             :disabled="isSubmitting"
+            @input="touched.url = true"
+            :aria-invalid="Boolean(urlError)"
+            aria-describedby="project-url-help project-url-error"
           />
-          <small>Please enter the full URL to your Scratch project</small>
+          <small id="project-url-help">Please enter the full URL to your Scratch project</small>
+          <div
+            v-if="urlError && (touched.url || attemptedSubmit)"
+            id="project-url-error"
+            class="field-error"
+          >
+            {{ urlError }}
+          </div>
         </div>
         
         <div class="form-group">
@@ -57,7 +80,7 @@
           <button 
             type="submit" 
             class="submit-btn" 
-            :disabled="isSubmitting || !isValidUrl"
+            :disabled="isSubmitting || !isValidUrl || !isValidFullName"
           >
             <span v-if="isSubmitting">
               <span class="spinner"></span> Submitting...
@@ -95,10 +118,22 @@ export default {
         comment: ''
       },
       isSubmitting: false,
-      error: null
+      error: null,
+      attemptedSubmit: false,
+      touched: {
+        name: false,
+        url: false,
+      },
     }
   },
   computed: {
+    isValidFullName() {
+      const parts = (this.formData.student_name || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+      return parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0
+    },
     isValidUrl() {
       if (!this.formData.projectUrl) return false
       try {
@@ -108,16 +143,59 @@ export default {
         return false
       }
     }
+    ,
+    nameError() {
+      const name = (this.formData.student_name || '').trim()
+      if (!name) return 'Name is required.'
+      if (!this.isValidFullName) return 'Needs to be full name (first and last name).'
+      return ''
+    },
+    urlError() {
+      const url = (this.formData.projectUrl || '').trim()
+      if (!url) return 'Project link is required.'
+      if (!this.isValidUrl) return 'Needs a valid Scratch link (https://scratch.mit.edu/projects/...).'
+      return ''
+    }
   },
   methods: {
+    normalizeName(input) {
+      const raw = (input || '').trim()
+      if (!raw) return ''
+      const collapsed = raw.replace(/\s+/g, ' ')
+      return collapsed
+        .split(' ')
+        .map((word) => {
+          const lower = word.toLowerCase()
+          const tokens = lower.split(/([\-'])/)
+          return tokens
+            .map((t) => {
+              if (t === '-' || t === "'") return t
+              if (!t) return ''
+              return t.charAt(0).toUpperCase() + t.slice(1)
+            })
+            .join('')
+        })
+        .join(' ')
+    },
+    normalizeStudentName() {
+      this.formData.student_name = this.normalizeName(this.formData.student_name)
+    },
     async submitForm() {
       if (!this.isValidUrl) return
+
+      this.attemptedSubmit = true
+
+      this.normalizeStudentName()
+      if (!this.isValidFullName) {
+        this.error = 'Please enter your full name (first name and last name).'
+        return
+      }
 
       this.isSubmitting = true
       this.error = null
 
       const submissionData = {
-        student_name: this.formData.student_name,
+        student_name: this.normalizeName(this.formData.student_name),
         project_url: this.formData.projectUrl,
         comment: this.formData.comment || null
       };
