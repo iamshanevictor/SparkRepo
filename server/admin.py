@@ -188,15 +188,29 @@ def get_all_submissions():
     try:
         week_id = request.args.get('week_id')
         status = request.args.get('status')
+        class_id = request.args.get('class_id')
         
         if week_id:
             submissions = Submission.get_by_week(week_id)
         else:
             submissions = Submission.get_all()
+
+        # Filter by class/category if provided.
+        # Submissions only store week_id, so we join against weeks to determine category_id.
+        if class_id:
+            weeks = Week.get_all()
+            week_ids_for_class = {w.get('id') for w in weeks if w.get('category_id') == class_id}
+            submissions = [s for s in submissions if s.get('week_id') in week_ids_for_class]
         
         # Filter by status if provided
         if status:
             submissions = [s for s in submissions if s.get('status') == status]
+
+        # Ensure consistent ordering (newest first)
+        try:
+            submissions.sort(key=lambda s: s.get('submitted_at'), reverse=True)
+        except Exception:
+            pass
         
         return jsonify({"submissions": submissions}), 200
         

@@ -33,6 +33,7 @@ export function clearCache() {
 export function useWeekData(categoryId, weekNumber) {
   const weekData = ref(null)
   const existingSubmission = ref(null)
+  const weekSubmissions = ref([])
   const loading = ref(false)
   const error = ref(null)
 
@@ -50,26 +51,39 @@ export function useWeekData(categoryId, weekNumber) {
       if (cached) {
         weekData.value = cached.weekData
         existingSubmission.value = cached.submission
+        weekSubmissions.value = cached.weekSubmissions || []
         loading.value = false
         return
       }
 
-      // Load fresh data - only fetch week (submission endpoint doesn't exist yet on backend)
-      const [data] = await Promise.allSettled([
+      // Load fresh data
+      const [weekResult] = await Promise.allSettled([
         api.getWeek(categoryId.value, weekNumber.value)
       ])
 
-      weekData.value = data.status === 'fulfilled' ? data.value : null
-      existingSubmission.value = null // Backend endpoint not implemented yet
+      weekData.value = weekResult.status === 'fulfilled' ? weekResult.value : null
+      existingSubmission.value = null // No per-student submission lookup (no accounts)
+
+      // Load submissions for the week (used for the "Submitted" panel name list)
+      if (weekData.value?.id) {
+        try {
+          weekSubmissions.value = await api.getWeekSubmissions(weekData.value.id)
+        } catch {
+          weekSubmissions.value = []
+        }
+      } else {
+        weekSubmissions.value = []
+      }
 
       // Cache the result
       setCache(cacheKey, {
         weekData: weekData.value,
-        submission: existingSubmission.value
+        submission: existingSubmission.value,
+        weekSubmissions: weekSubmissions.value
       })
 
-      if (data.status === 'rejected') {
-        error.value = data.reason?.message || 'Failed to load week'
+      if (weekResult.status === 'rejected') {
+        error.value = weekResult.reason?.message || 'Failed to load week'
       }
     } catch (e) {
       error.value = e.message || 'Failed to load week data'
@@ -91,6 +105,7 @@ export function useWeekData(categoryId, weekNumber) {
   return {
     weekData,
     existingSubmission,
+    weekSubmissions,
     loading,
     error,
     loadWeekData,

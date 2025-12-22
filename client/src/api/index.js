@@ -72,7 +72,11 @@ export const api = {
     return request(`/categories/${categoryId}/weeks/${weekNumber}/submissions`, {
       method: 'POST',
       body: JSON.stringify(payload),
-    })
+    }).then((data) => data?.submission || data)
+  },
+
+  getWeekSubmissions(weekId) {
+    return request(`/weeks/${weekId}/submissions`).then((data) => data.submissions || [])
   },
 
   // Note: This endpoint doesn't exist yet on backend

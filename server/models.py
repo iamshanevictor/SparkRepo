@@ -264,13 +264,15 @@ class Submission:
         """Get all submissions for a week."""
         db = get_firestore_client()
         submissions = []
+        # NOTE: Avoid Firestore composite index requirements by not combining
+        # a filter (where) with an order_by on another field. We'll sort in Python.
         docs = db.collection(SUBMISSIONS_COLLECTION)\
-            .where('week_id', '==', week_id)\
-            .order_by('submitted_at', direction='DESCENDING').stream()
+            .where('week_id', '==', week_id).stream()
         for doc in docs:
             data = doc.to_dict()
             data['id'] = doc.id
             submissions.append(data)
+        submissions.sort(key=lambda s: s.get('submitted_at') or datetime.min, reverse=True)
         return submissions
     
     @staticmethod

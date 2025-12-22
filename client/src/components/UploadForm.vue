@@ -19,11 +19,15 @@
             required
             :disabled="loading"
             autocomplete="name"
+            list="student-name-suggestions"
             @blur="normalizeStudentName"
             @input="touched.name = true"
             :aria-invalid="Boolean(nameError)"
             aria-describedby="student-name-help student-name-error"
           />
+          <datalist id="student-name-suggestions">
+            <option v-for="n in savedNames" :key="n" :value="n" />
+          </datalist>
           <small>Enter first and last name (e.g., "Juan Dela Cruz").</small>
           <div
             v-if="nameError && (touched.name || attemptedSubmit)"
@@ -93,6 +97,8 @@ export default {
   },
   data() {
     return {
+      storageKey: 'spark.savedStudentNames.v1',
+      savedNames: [],
       loading: false,
       error: null,
       attemptedSubmit: false,
@@ -106,6 +112,9 @@ export default {
         comment: '',
       },
     }
+  },
+  mounted() {
+    this.savedNames = this.getSavedNames()
   },
   computed: {
     categoryNameLower() {
@@ -175,6 +184,36 @@ export default {
     },
   },
   methods: {
+    getSavedNames() {
+      try {
+        const raw = localStorage.getItem(this.storageKey)
+        if (!raw) return []
+        const parsed = JSON.parse(raw)
+        if (!Array.isArray(parsed)) return []
+        return parsed
+          .filter((v) => typeof v === 'string')
+          .map((v) => v.trim())
+          .filter(Boolean)
+      } catch {
+        return []
+      }
+    },
+    persistNameSuggestion(name) {
+      const normalized = this.normalizeName(name)
+      if (!normalized) return
+
+      const existing = this.savedNames || []
+      const exists = existing.some((n) => (n || '').toLowerCase() === normalized.toLowerCase())
+      if (exists) return
+
+      const next = [...existing, normalized].sort((a, b) => a.localeCompare(b))
+      this.savedNames = next
+      try {
+        localStorage.setItem(this.storageKey, JSON.stringify(next))
+      } catch {
+        // Ignore storage failures (private mode/quota/etc.)
+      }
+    },
     normalizeName(input) {
       const raw = (input || '').trim()
       if (!raw) return ''
@@ -221,6 +260,10 @@ export default {
           comment: this.form.comment || null,
         }
         const submission = await api.submitProject(this.categoryId, this.weekNumber, payload)
+
+        // Save name for future suggestion/autocomplete.
+        this.persistNameSuggestion(payload.student_name)
+
         // Keep both events for backwards compatibility.
         this.$emit('submission-complete', submission)
         this.$emit('submitted', submission)

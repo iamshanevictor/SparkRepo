@@ -12,7 +12,7 @@ const weekNumber = ref(Number(route.params.weekNumber))
 
 // Use composables for data loading with caching
 const { weeks: weeksList } = useWeeksList(categoryId)
-const { weekData, existingSubmission, refresh } = useWeekData(categoryId, weekNumber)
+const { weekData, weekSubmissions, existingSubmission, refresh } = useWeekData(categoryId, weekNumber)
 const { categories, loadCategories } = useCategories()
 
 const localSubmissionOverride = ref(null)
@@ -48,6 +48,22 @@ function goHome() {
 }
 
 const effectiveSubmission = computed(() => localSubmissionOverride.value || existingSubmission.value)
+
+const submitterNames = computed(() => {
+  const seen = new Set()
+  const names = []
+
+  for (const s of (weekSubmissions.value || [])) {
+    const raw = (s?.student_name || '').trim()
+    if (!raw) continue
+    const key = raw.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    names.push(raw)
+  }
+
+  return names.sort((a, b) => a.localeCompare(b))
+})
 
 function handleSubmissionSuccess(submission) {
   if (submission) {
@@ -131,21 +147,17 @@ function handleSubmissionSuccess(submission) {
       <!-- Right Panel: Submission Status -->
       <div class="panel status-panel">
         <div class="panel-header">
-          <h3>Submitted</h3>
+           <h3>This week’s submissions</h3>
           <button class="icon-btn">
             <span>📋</span>
           </button>
         </div>
         <div class="panel-content status-content">
-          <div v-if="effectiveSubmission" class="status-card submitted">
-            <div class="status-icon">✅</div>
-            <h4>Great Job! 🎉</h4>
-            <p>Your work has been submitted!</p>
-          </div>
-          <div v-else class="status-card not-submitted">
-            <div class="status-icon">📝</div>
-            <h4>Not Submitted Yet</h4>
-            <p>Complete your work and submit when ready!</p>
+          <div class="submitters">
+            <ul v-if="submitterNames.length" class="submitters-list">
+              <li v-for="name in submitterNames" :key="name" class="submitter-item">{{ name }}</li>
+            </ul>
+            <p v-else class="submitters-empty">No submissions yet.</p>
           </div>
         </div>
       </div>
@@ -258,6 +270,36 @@ function handleSubmissionSuccess(submission) {
   margin-left: 8px;
 }
 
+.submitters {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e8e8ff;
+}
+
+.submitters-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.submitter-item {
+  padding: 8px 10px;
+  border: 1px solid #e8e8ff;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background: #f8f9ff;
+  font-weight: 700;
+  color: #4a4a6a;
+}
+
+.submitters-empty {
+  margin: 0;
+  color: #7a7a9a;
+  font-weight: 600;
+}
+
 .header-actions {
   display: flex;
   gap: 4px;
@@ -344,51 +386,11 @@ function handleSubmissionSuccess(submission) {
 
 .status-content {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 12px;
   height: 100%;
-}
-
-.status-card {
-  text-align: center;
-  padding: 32px 24px;
-  border-radius: 16px;
-  background: #f8f9ff;
-}
-
-.status-icon {
-  font-size: 3.5rem;
-  margin-bottom: 16px;
-}
-
-.status-card h4 {
-  margin: 0 0 12px 0;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #4a4a6a;
-}
-
-.status-card p {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #7a7a9a;
-  line-height: 1.5;
-}
-
-.status-card.submitted {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-}
-
-.status-card.submitted h4 {
-  color: #065f46;
-}
-
-.status-card.not-submitted {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-}
-
-.status-card.not-submitted h4 {
-  color: #92400e;
 }
 
 /* Submit & Edit Buttons */
